@@ -33,6 +33,9 @@ class GarminClient:
             return data
         try:
             data = fetch_fn()
+        except GarminConnectAuthenticationError:
+            self._client.login()
+            data = fetch_fn()
         except GarminConnectTooManyRequestsError as e:
             raise RuntimeError("Garmin rate limit hit — try again later") from e
         self._cache.set(key, data)

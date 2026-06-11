@@ -40,20 +40,21 @@ Retorne EXATAMENTE este JSON (array de 7 objetos, sem markdown, sem texto extra)
   ...
 ]"""
 
-        raw = ask_coach(prompt, context, depth="deep")
-        cleaned = raw.strip()
+        for attempt in range(3):
+            raw = ask_coach(prompt, context, depth="deep")
+            cleaned = raw.strip()
 
-        # Remove markdown code blocks if present
-        if cleaned.startswith("```"):
-            cleaned = cleaned.split("```")[1]
-            if cleaned.startswith("json"):
-                cleaned = cleaned[4:]
+            # Remove markdown code blocks if present
+            if cleaned.startswith("```"):
+                cleaned = cleaned.split("```")[1]
+                if cleaned.startswith("json"):
+                    cleaned = cleaned[4:]
 
-        plan = json.loads(cleaned)
+            plan = json.loads(cleaned)
 
-        # Validate: must have at least 3 run days
-        run_days = sum(1 for d in plan if d.get("tipo") == "corrida")
-        if run_days < 3:
-            raise ValueError(f"Plan has only {run_days} run days — minimum is 3. Retry.")
+            # Validate: must have at least 3 run days
+            run_days = sum(1 for d in plan if d.get("tipo") == "corrida")
+            if run_days >= 3:
+                return plan
 
-        return plan
+        raise ValueError(f"Plan failed to include ≥3 run days after 3 attempts.")

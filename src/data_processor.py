@@ -49,8 +49,11 @@ class DataProcessor:
         classified = self.classify_activities(activities)
         today = datetime.date.today()
         week_ago = (today - datetime.timedelta(days=7)).isoformat()
+        resting_hr_avg_7d = self.resting_hr_avg(hr_data)
+        resting_hr_today = hr_data[0].get("restingHeartRate", resting_hr_avg_7d) if hr_data else resting_hr_avg_7d
         return {
-            "resting_hr_avg_7d": self.resting_hr_avg(hr_data),
+            "resting_hr_avg_7d": resting_hr_avg_7d,
+            "resting_hr_today": resting_hr_today,
             "sleep_debt_hours": self.sleep_debt_hours(sleep_data),
             "morning_battery_avg": self.morning_body_battery(battery_data),
             "recent_activities": classified[:10],
@@ -58,6 +61,8 @@ class DataProcessor:
                 1 for a in classified if a["is_strength"] and a["date"] >= week_ago
             ),
             "run_sessions_7d": sum(
-                1 for a in classified if not a["is_strength"] and a["date"] >= week_ago
+                1 for a in classified
+                if a["type"] in {"running", "trail_running", "treadmill_running"}
+                and a["date"] >= week_ago
             ),
         }
