@@ -1,9 +1,13 @@
 """Monta payloads JSON-ready a partir do backend src/. Sem lógica de negócio nova."""
+import json as _json
 from datetime import date, timedelta
 
 from src.data_processor import DataProcessor
 from src.health_monitor import HealthMonitor
 from src.training_planner import TrainingPlanner
+from src.analytics import Analytics
+from src.insight_engine import InsightEngine
+from src.extractors import splits_from_garmin
 
 
 def _load_context(client):
@@ -16,10 +20,10 @@ def _load_context(client):
     return dp, context, activities, hr_data, sleep_data, battery_data
 
 
-def build_today(client) -> dict:
-    _, context, *_ = _load_context(client)
+def build_today(client, db=None) -> dict:
+    dp, context, *_ = _load_context(client)
     status = HealthMonitor().check(context)
-    return {
+    payload = {
         "status": status["status"],
         "motivo": status["motivo"],
         "recomendacao": status["recomendacao"],
@@ -31,6 +35,11 @@ def build_today(client) -> dict:
             "run_sessions_7d": context["run_sessions_7d"],
         },
     }
+    if db is not None:
+        start, end = _period_range(30)
+        analytics = Analytics().summary(db.get_snapshots(start, end))
+        payload["daily_insight"] = InsightEngine().daily_insight(context, analytics)
+    return payload
 
 
 def build_plan(client) -> dict:
@@ -81,3 +90,37 @@ def build_data(client) -> dict:
         "battery_trend": dp.weekly_trend(bat, unidade="%"),
         "atividades": atividades,
     }
+
+
+def _period_range(period: int):
+    end = date.today()
+    start = end - timedelta(days=period - 1)
+    return start.isoformat(), end.isoformat()
+
+
+def build_trends(db, period: int = 30) -> dict:
+    start, end = _period_range(period)
+    snaps = db.get_snapshots(start, end)
+    metrics = Analytics().summary(snaps)
+    insights = InsightEngine().trend_insights(metrics)
+    return {"period": period, "metrics": metrics, "insights": insights}
+
+
+def build_activities(db, period: int = 30) -> list:
+    start, end = _period_range(period)
+    return db.get_activities(start, end)
+
+
+def build_activity_detail(db, client, activity_id: int) -> dict:
+    act = db.get_activity(activity_id)
+    if act is None:
+        raise ValueError(f"Atividade {activity_id} não encontrada")
+    if act.get("splits_json"):
+        splits = _json.loads(act["splits_json"])
+    else:
+        raw = client.get_activity_splits(activity_id)
+        splits = splits_from_garmin(raw)
+        act["splits_json"] = _json.dumps(splits)
+        db.upsert_activity(act)
+    insight = InsightEngine().activity_insight(act, splits)
+    return {"activity": act, "splits": splits, "insight": insight}

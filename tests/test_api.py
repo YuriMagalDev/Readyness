@@ -79,3 +79,58 @@ def test_today_route_garmin_error_returns_503():
         resp = TestClient(app).get("/api/today")
     assert resp.status_code == 503
     assert "erro" in resp.json()
+
+
+from unittest.mock import MagicMock as _MM
+
+
+def _hist_with_snapshots():
+    db = _MM()
+    db.get_snapshots.return_value = [
+        {"date": f"2026-06-{i+1:02d}", "resting_hr": 50 + i, "sleep_hours": 7,
+         "stress_avg": 30, "body_battery_high": 90, "intensity_minutes": 30,
+         "race_pred_5k": 1800} for i in range(14)
+    ]
+    db.get_activities.return_value = [
+        {"activity_id": 1, "date": "2026-06-10", "name": "Corrida", "type": "running",
+         "is_strength": 0, "pace_min_km": 5.0, "avg_hr": 150, "duration_min": 25,
+         "distance_m": 5000, "splits_json": None}
+    ]
+    db.get_activity.return_value = {
+        "activity_id": 1, "date": "2026-06-10", "name": "Corrida", "type": "running",
+        "is_strength": 0, "pace_min_km": 5.0, "avg_hr": 150, "duration_min": 25,
+        "distance_m": 5000, "splits_json": None,
+    }
+    return db
+
+
+def test_build_trends():
+    db = _hist_with_snapshots()
+    with patch("api.services.InsightEngine") as MockEng:
+        MockEng.return_value.trend_insights.return_value = ["obs1", "obs2"]
+        payload = services.build_trends(db, period=14)
+    assert "metrics" in payload
+    assert "insights" in payload
+    assert payload["insights"] == ["obs1", "obs2"]
+    assert "resting_hr" in payload["metrics"]
+
+
+def test_build_activities_list():
+    db = _hist_with_snapshots()
+    payload = services.build_activities(db, period=30)
+    assert isinstance(payload, list)
+    assert payload[0]["name"] == "Corrida"
+
+
+def test_build_activity_detail_fetches_splits_if_missing():
+    db = _hist_with_snapshots()
+    client = MagicMock()
+    client.get_activity_splits.return_value = {"lapDTOs": [
+        {"distance": 1000, "duration": 300, "averageSpeed": 3.33, "averageHR": 150, "averageRunCadence": 160}
+    ]}
+    with patch("api.services.InsightEngine") as MockEng:
+        MockEng.return_value.activity_insight.return_value = "bom pace"
+        payload = services.build_activity_detail(db, client, 1)
+    assert payload["splits"][0]["distance_m"] == 1000
+    assert payload["insight"] == "bom pace"
+    client.get_activity_splits.assert_called_once_with(1)
