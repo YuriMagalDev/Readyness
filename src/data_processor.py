@@ -1,0 +1,63 @@
+import datetime
+
+STRENGTH_ACTIVITY_TYPES = {"strength_training", "indoor_cardio"}
+SLEEP_TARGET_HOURS = 7.0
+
+class DataProcessor:
+    def classify_activities(self, activities: list) -> list:
+        result = []
+        for act in activities:
+            type_key = act.get("activityType", {}).get("typeKey", "")
+            result.append({
+                "name": act.get("activityName", ""),
+                "type": type_key,
+                "is_strength": type_key in STRENGTH_ACTIVITY_TYPES,
+                "duration_minutes": round(act.get("duration", 0) / 60),
+                "hr_avg": act.get("averageHR"),
+                "date": act.get("startTimeLocal", "")[:10],
+            })
+        return result
+
+    def resting_hr_avg(self, hr_data: list) -> float:
+        values = [d["restingHeartRate"] for d in hr_data if "restingHeartRate" in d]
+        return round(sum(values) / len(values), 1) if values else 0.0
+
+    def sleep_debt_hours(self, sleep_data: list) -> float:
+        target_seconds = SLEEP_TARGET_HOURS * 3600
+        total_debt = 0.0
+        for day in sleep_data:
+            slept = day.get("dailySleepDTO", {}).get("sleepTimeSeconds", target_seconds)
+            deficit = target_seconds - slept
+            if deficit > 0:
+                total_debt += deficit
+        return round(total_debt / 3600, 1)
+
+    def morning_body_battery(self, battery_data: list) -> float:
+        values = []
+        for day in battery_data:
+            if day and isinstance(day, list) and day[0].get("charged") is not None:
+                values.append(day[0]["charged"])
+        return round(sum(values) / len(values), 1) if values else 0.0
+
+    def build_context_summary(
+        self,
+        activities: list,
+        hr_data: list,
+        sleep_data: list,
+        battery_data: list,
+    ) -> dict:
+        classified = self.classify_activities(activities)
+        today = datetime.date.today()
+        week_ago = (today - datetime.timedelta(days=7)).isoformat()
+        return {
+            "resting_hr_avg_7d": self.resting_hr_avg(hr_data),
+            "sleep_debt_hours": self.sleep_debt_hours(sleep_data),
+            "morning_battery_avg": self.morning_body_battery(battery_data),
+            "recent_activities": classified[:10],
+            "strength_sessions_7d": sum(
+                1 for a in classified if a["is_strength"] and a["date"] >= week_ago
+            ),
+            "run_sessions_7d": sum(
+                1 for a in classified if not a["is_strength"] and a["date"] >= week_ago
+            ),
+        }
