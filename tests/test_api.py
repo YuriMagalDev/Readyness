@@ -134,3 +134,41 @@ def test_build_activity_detail_fetches_splits_if_missing():
     assert payload["splits"][0]["distance_m"] == 1000
     assert payload["insight"] == "bom pace"
     client.get_activity_splits.assert_called_once_with(1)
+
+
+def test_trends_route():
+    with patch("api.main.GarminClient"), patch("api.main.get_db"), \
+         patch("api.main.services.build_trends", return_value={"metrics": {}, "insights": []}):
+        from api.main import app
+        resp = TestClient(app).get("/api/trends?period=30")
+    assert resp.status_code == 200
+    assert "insights" in resp.json()
+
+
+def test_activities_route():
+    with patch("api.main.GarminClient"), patch("api.main.get_db"), \
+         patch("api.main.services.build_activities", return_value=[{"name": "Corrida"}]):
+        from api.main import app
+        resp = TestClient(app).get("/api/activities?period=30")
+    assert resp.status_code == 200
+    assert resp.json()[0]["name"] == "Corrida"
+
+
+def test_activity_detail_route():
+    with patch("api.main.GarminClient"), patch("api.main.get_db"), \
+         patch("api.main.services.build_activity_detail",
+               return_value={"activity": {}, "splits": [], "insight": "ok"}):
+        from api.main import app
+        resp = TestClient(app).get("/api/activity/1")
+    assert resp.status_code == 200
+    assert resp.json()["insight"] == "ok"
+
+
+def test_sync_route():
+    with patch("api.main.GarminClient"), patch("api.main.get_db"), \
+         patch("api.main.Ingestor") as MockIng:
+        MockIng.return_value.sync_today.return_value = None
+        from api.main import app
+        resp = TestClient(app).post("/api/sync")
+    assert resp.status_code == 200
+    assert resp.json()["ok"] is True

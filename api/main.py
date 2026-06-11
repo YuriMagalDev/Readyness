@@ -8,6 +8,8 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.garmin_client import GarminClient
+from src.history_db import HistoryDB
+from src.ingestor import Ingestor
 from api import services
 
 app = FastAPI(title="Garmin AI Coach")
@@ -29,6 +31,16 @@ def get_client() -> GarminClient:
     return _client
 
 
+_db = None
+
+
+def get_db() -> HistoryDB:
+    global _db
+    if _db is None:
+        _db = HistoryDB()
+    return _db
+
+
 def _safe(fn, *, code: int):
     try:
         return fn()
@@ -38,7 +50,7 @@ def _safe(fn, *, code: int):
 
 @app.get("/api/today")
 def today():
-    return _safe(lambda: services.build_today(get_client()), code=503)
+    return _safe(lambda: services.build_today(get_client(), get_db()), code=503)
 
 
 @app.post("/api/plan")
@@ -57,6 +69,29 @@ def profile():
     if not path.exists():
         return JSONResponse(status_code=404, content={"erro": "athlete_profile.json não encontrado"})
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+@app.get("/api/trends")
+def trends(period: int = 30):
+    return _safe(lambda: services.build_trends(get_db(), period), code=503)
+
+
+@app.get("/api/activities")
+def activities(period: int = 30):
+    return _safe(lambda: services.build_activities(get_db(), period), code=503)
+
+
+@app.get("/api/activity/{activity_id}")
+def activity_detail(activity_id: int):
+    return _safe(lambda: services.build_activity_detail(get_db(), get_client(), activity_id), code=503)
+
+
+@app.post("/api/sync")
+def sync():
+    def _run():
+        Ingestor(get_client(), get_db()).sync_today()
+        return {"ok": True}
+    return _safe(_run, code=503)
 
 
 # Serve build React em prod, se existir (montado por último pra não capturar /api).
