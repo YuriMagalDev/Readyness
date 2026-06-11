@@ -1,5 +1,9 @@
 @echo off
 cd /d "%USERPROFILE%\Documents\Antigravity\Garmin"
-call .venv\Scripts\activate 2>nul || echo Sem venv, usando Python do sistema
-streamlit run dashboard/app.py
+if not exist "web\dist" (
+  echo Building frontend...
+  cd web && call npm install && call npm run build && cd ..
+)
+start "" http://localhost:8000
+uvicorn api.main:app --port 8000
 pause
