@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<title>Layout — Plano Semanal</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f0f; color: #e0e0e0; padding: 32px; }
+  h1 { font-size: 18px; font-weight: 500; color: #fff; margin-bottom: 6px; }
+  .subtitle { font-size: 13px; color: #888; margin-bottom: 28px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 900px; }
+  .option { border: 1.5px solid #2a2a2a; border-radius: 12px; overflow: hidden; cursor: pointer; transition: border-color 0.2s; }
+  .option:hover { border-color: #555; }
+  .option.selected { border-color: #4ade80; }
+  .opt-header { padding: 10px 16px; background: #1a1a1a; border-bottom: 1px solid #222; display: flex; justify-content: space-between; }
+  .opt-label { font-size: 11px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.05em; }
+  .preview { background: #0f0f0f; padding: 16px; min-height: 280px; }
+  .opt-footer { padding: 12px 16px; background: #1a1a1a; border-top: 1px solid #222; }
+  .opt-title { font-size: 13px; font-weight: 500; color: #fff; margin-bottom: 3px; }
+  .opt-desc { font-size: 11px; color: #666; line-height: 1.5; }
+
+  /* Option A — Week calendar grid */
+  .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .day-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 8px 5px; text-align: center; }
+  .day-card.run { border-color: #15803d; }
+  .day-card.gym { border-color: #1d4ed8; }
+  .day-card.rest { opacity: 0.5; }
+  .day-name { font-size: 9px; color: #666; margin-bottom: 5px; text-transform: uppercase; }
+  .day-icon { font-size: 18px; margin-bottom: 4px; }
+  .day-type { font-size: 9px; color: #aaa; margin-bottom: 2px; }
+  .day-dur { font-size: 9px; color: #666; }
+  .day-badge { display: inline-block; font-size: 8px; padding: 2px 5px; border-radius: 4px; margin-top: 4px; }
+  .badge-run { background: #14532d; color: #4ade80; }
+  .badge-gym { background: #1e3a5f; color: #60a5fa; }
+  .badge-rest { background: #222; color: #666; }
+  .gen-btn-a { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 9px 16px; background: #14532d; border: none; border-radius: 8px; color: #4ade80; font-size: 12px; font-weight: 500; cursor: pointer; width: 100%; justify-content: center; }
+
+  /* Option B — Vertical list */
+  .plan-list { display: flex; flex-direction: column; gap: 6px; }
+  .plan-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; }
+  .plan-row.run { border-left: 3px solid #4ade80; }
+  .plan-row.gym { border-left: 3px solid #60a5fa; }
+  .plan-row.rest { border-left: 3px solid #333; opacity: 0.6; }
+  .row-day { font-size: 11px; font-weight: 500; color: #aaa; width: 56px; flex-shrink: 0; }
+  .row-icon { font-size: 16px; flex-shrink: 0; }
+  .row-desc { flex: 1; }
+  .row-title { font-size: 12px; color: #fff; }
+  .row-sub { font-size: 10px; color: #666; }
+  .row-dur { font-size: 11px; color: #888; flex-shrink: 0; }
+  .gen-btn-b { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 9px 16px; background: #14532d; border: none; border-radius: 8px; color: #4ade80; font-size: 12px; font-weight: 500; cursor: pointer; width: 100%; justify-content: center; }
+
+  #result { margin-top: 20px; padding: 14px 20px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; font-size: 14px; color: #888; display: none; max-width: 900px; }
+  #result span { color: #4ade80; font-weight: 500; }
+</style>
+</head>
+<body>
+
+<h1>Layout da página "Plano Semanal"</h1>
+<p class="subtitle">Como exibir os 7 dias do plano gerado por IA?</p>
+
+<div class="grid">
+
+  <!-- OPÇÃO A — grade semanal -->
+  <div class="option" id="opt-a" onclick="select('a')">
+    <div class="opt-header">
+      <span class="opt-label">Opção A — Grade semanal</span>
+    </div>
+    <div class="preview">
+      <div class="week-grid">
+        <div class="day-card run">
+          <div class="day-name">SEG</div>
+          <div class="day-icon">🏃</div>
+          <div class="day-type">Corrida</div>
+          <div class="day-dur">40 min</div>
+          <div class="day-badge badge-run">leve</div>
+        </div>
+        <div class="day-card gym">
+          <div class="day-name">TER</div>
+          <div class="day-icon">💪</div>
+          <div class="day-type">Musculação</div>
+          <div class="day-dur">60 min</div>
+          <div class="day-badge badge-gym">moderada</div>
+        </div>
+        <div class="day-card run">
+          <div class="day-name">QUA</div>
+          <div class="day-icon">🏃</div>
+          <div class="day-type">Corrida</div>
+          <div class="day-dur">50 min</div>
+          <div class="day-badge badge-run">moderada</div>
+        </div>
+        <div class="day-card rest">
+          <div class="day-name">QUI</div>
+          <div class="day-icon">😴</div>
+          <div class="day-type">Descanso</div>
+          <div class="day-dur">—</div>
+          <div class="day-badge badge-rest">ativo</div>
+        </div>
+        <div class="day-card run">
+          <div class="day-name">SEX</div>
+          <div class="day-icon">🏃</div>
+          <div class="day-type">Corrida</div>
+          <div class="day-dur">45 min</div>
+          <div class="day-badge badge-run">alta</div>
+        </div>
+        <div class="day-card gym">
+          <div class="day-name">SAB</div>
+          <div class="day-icon">💪</div>
+          <div class="day-type">Musculação</div>
+          <div class="day-dur">60 min</div>
+          <div class="day-badge badge-gym">moderada</div>
+        </div>
+        <div class="day-card rest">
+          <div class="day-name">DOM</div>
+          <div class="day-icon">😴</div>
+          <div class="day-type">Descanso</div>
+          <div class="day-dur">—</div>
+          <div class="day-badge badge-rest">total</div>
+        </div>
+      </div>
+      <button class="gen-btn-a">⚡ Gerar novo plano</button>
+    </div>
+    <div class="opt-footer">
+      <div class="opt-title">Grade 7 colunas — visão de calendário</div>
+      <div class="opt-desc">Todos os dias lado a lado. Cores por tipo. Snapshot rápido da semana.</div>
+    </div>
+  </div>
+
+  <!-- OPÇÃO B — lista vertical -->
+  <div class="option" id="opt-b" onclick="select('b')">
+    <div class="opt-header">
+      <span class="opt-label">Opção B — Lista detalhada</span>
+    </div>
+    <div class="preview">
+      <div class="plan-list">
+        <div class="plan-row run">
+          <span class="row-day">Segunda</span>
+          <span class="row-icon">🏃</span>
+          <div class="row-desc"><div class="row-title">Corrida leve 5km</div><div class="row-sub">leve · 40 min</div></div>
+          <span class="row-dur">40 min</span>
+        </div>
+        <div class="plan-row gym">
+          <span class="row-day">Terça</span>
+          <span class="row-icon">💪</span>
+          <div class="row-desc"><div class="row-title">Peito e tríceps</div><div class="row-sub">moderada · 60 min</div></div>
+          <span class="row-dur">60 min</span>
+        </div>
+        <div class="plan-row run">
+          <span class="row-day">Quarta</span>
+          <span class="row-icon">🏃</span>
+          <div class="row-desc"><div class="row-title">Corrida moderada 7km</div><div class="row-sub">moderada · 50 min</div></div>
+          <span class="row-dur">50 min</span>
+        </div>
+        <div class="plan-row rest">
+          <span class="row-day">Quinta</span>
+          <span class="row-icon">😴</span>
+          <div class="row-desc"><div class="row-title">Recuperação ativa</div><div class="row-sub">descanso</div></div>
+          <span class="row-dur">—</span>
+        </div>
+        <div class="plan-row run">
+          <span class="row-day">Sexta</span>
+          <span class="row-icon">🏃</span>
+          <div class="row-desc"><div class="row-title">Corrida intervalada</div><div class="row-sub">alta · 45 min</div></div>
+          <span class="row-dur">45 min</span>
+        </div>
+      </div>
+      <button class="gen-btn-b">⚡ Gerar novo plano</button>
+    </div>
+    <div class="opt-footer">
+      <div class="opt-title">Lista com descrição detalhada</div>
+      <div class="opt-desc">Cada dia em linha. Descrição do treino visível. Mais fácil de ler dia a dia.</div>
+    </div>
+  </div>
+
+</div>
+
+<div id="result"></div>
+
+<script>
+function select(opt) {
+  ['a','b'].forEach(o => document.getElementById('opt-'+o).classList.remove('selected'));
+  document.getElementById('opt-'+opt).classList.add('selected');
+  const names = { a: 'Opção A — Grade semanal (calendário)', b: 'Opção B — Lista detalhada' };
+  const r = document.getElementById('result');
+  r.style.display = 'block';
+  r.innerHTML = 'Selecionado: <span>' + names[opt] + '</span> — pode fechar e responder no chat.';
+}
+</script>
+</body>
+</html>

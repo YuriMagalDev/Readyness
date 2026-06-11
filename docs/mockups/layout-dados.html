@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<title>Layout — Dados</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f0f; color: #e0e0e0; padding: 32px; }
+  h1 { font-size: 18px; font-weight: 500; color: #fff; margin-bottom: 6px; }
+  .subtitle { font-size: 13px; color: #888; margin-bottom: 28px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 900px; }
+  .option { border: 1.5px solid #2a2a2a; border-radius: 12px; overflow: hidden; cursor: pointer; transition: border-color 0.2s; }
+  .option:hover { border-color: #555; }
+  .option.selected { border-color: #4ade80; }
+  .opt-header { padding: 10px 16px; background: #1a1a1a; border-bottom: 1px solid #222; }
+  .opt-label { font-size: 11px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.05em; }
+  .preview { background: #0f0f0f; padding: 16px; min-height: 300px; }
+  .opt-footer { padding: 12px 16px; background: #1a1a1a; border-top: 1px solid #222; }
+  .opt-title { font-size: 13px; font-weight: 500; color: #fff; margin-bottom: 3px; }
+  .opt-desc { font-size: 11px; color: #666; line-height: 1.5; }
+
+  .section-label { font-size: 10px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+
+  /* Mini sparkline SVG */
+  svg.spark { width: 100%; height: 48px; display: block; }
+
+  /* Opção A — 2 gráficos + tabela */
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .chart-mini { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 10px; }
+  .chart-title { font-size: 10px; color: #666; margin-bottom: 6px; }
+  .chart-val { font-size: 16px; font-weight: 500; color: #fff; margin-bottom: 6px; }
+  .act-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid #1f1f1f; font-size: 11px; }
+  .act-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot-run { background: #4ade80; }
+  .dot-gym { background: #60a5fa; }
+  .act-name { flex: 1; color: #ccc; }
+  .act-meta { color: #666; }
+
+  /* Opção B — cards por métrica com mini gráfico inline */
+  .metric-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 12px; margin-bottom: 8px; }
+  .mc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+  .mc-title { font-size: 11px; color: #888; }
+  .mc-val { font-size: 20px; font-weight: 500; color: #fff; }
+  .mc-delta { font-size: 10px; color: #4ade80; }
+  .mc-delta.warn { color: #fbbf24; }
+
+  #result { margin-top: 20px; padding: 14px 20px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; font-size: 14px; color: #888; display: none; max-width: 900px; }
+  #result span { color: #4ade80; font-weight: 500; }
+</style>
+</head>
+<body>
+
+<h1>Layout da página "Dados"</h1>
+<p class="subtitle">Como visualizar histórico de FC, Battery, sono e atividades?</p>
+
+<div class="grid">
+
+  <!-- OPÇÃO A: 2 gráficos no topo + lista de atividades -->
+  <div class="option" id="opt-a" onclick="select('a')">
+    <div class="opt-header"><span class="opt-label">Opção A — Gráficos + lista</span></div>
+    <div class="preview">
+      <div class="charts-row">
+        <div class="chart-mini">
+          <div class="chart-title">FC repouso — 7d</div>
+          <div class="chart-val">52 <span style="font-size:11px;color:#666;">bpm</span></div>
+          <svg class="spark" viewBox="0 0 120 40" preserveAspectRatio="none">
+            <polyline points="0,28 20,24 40,26 60,20 80,22 100,18 120,20" fill="none" stroke="#4ade80" stroke-width="1.5" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="chart-mini">
+          <div class="chart-title">Body Battery — 7d</div>
+          <div class="chart-val">68 <span style="font-size:11px;color:#666;">%</span></div>
+          <svg class="spark" viewBox="0 0 120 40" preserveAspectRatio="none">
+            <polyline points="0,10 20,18 40,14 60,22 80,16 100,20 120,14" fill="none" stroke="#60a5fa" stroke-width="1.5" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-label">Atividades recentes</div>
+        <div class="act-row"><div class="act-dot dot-run"></div><span class="act-name">Corrida em esteira</span><span class="act-meta">10 jun · 42 min</span></div>
+        <div class="act-row"><div class="act-dot dot-gym"></div><span class="act-name">Treino de força</span><span class="act-meta">09 jun · 55 min</span></div>
+        <div class="act-row"><div class="act-dot dot-run"></div><span class="act-name">Corrida ao ar livre</span><span class="act-meta">07 jun · 38 min</span></div>
+        <div class="act-row" style="border:none;"><div class="act-dot dot-gym"></div><span class="act-name">Treino de força</span><span class="act-meta">06 jun · 60 min</span></div>
+      </div>
+    </div>
+    <div class="opt-footer">
+      <div class="opt-title">2 gráficos + lista de atividades</div>
+      <div class="opt-desc">Sparklines de FC e Battery no topo. Histórico de atividades abaixo.</div>
+    </div>
+  </div>
+
+  <!-- OPÇÃO B: cards por métrica com gráfico integrado -->
+  <div class="option" id="opt-b" onclick="select('b')">
+    <div class="opt-header"><span class="opt-label">Opção B — Cards por métrica</span></div>
+    <div class="preview">
+      <div class="metric-card">
+        <div class="mc-header">
+          <div><div class="mc-title">FC repouso — 7 dias</div><div class="mc-val">52 bpm</div></div>
+          <div class="mc-delta">▼ 2 bpm vs semana passada</div>
+        </div>
+        <svg class="spark" viewBox="0 0 200 36" preserveAspectRatio="none">
+          <polyline points="0,26 33,22 66,24 100,18 133,20 167,16 200,18" fill="none" stroke="#4ade80" stroke-width="1.5" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="metric-card">
+        <div class="mc-header">
+          <div><div class="mc-title">Body Battery — 7 dias</div><div class="mc-val">68%</div></div>
+          <div class="mc-delta warn">▲ leve queda desde seg</div>
+        </div>
+        <svg class="spark" viewBox="0 0 200 36" preserveAspectRatio="none">
+          <polyline points="0,8 33,16 66,12 100,20 133,14 167,18 200,22" fill="none" stroke="#60a5fa" stroke-width="1.5" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="metric-card">
+        <div class="mc-header">
+          <div><div class="mc-title">Dívida de sono — 7 dias</div><div class="mc-val">0.5h</div></div>
+          <div class="mc-delta">Abaixo do limite de 2h</div>
+        </div>
+        <svg class="spark" viewBox="0 0 200 36" preserveAspectRatio="none">
+          <polyline points="0,28 33,26 66,22 100,24 133,20 167,22 200,24" fill="none" stroke="#a78bfa" stroke-width="1.5" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="opt-footer">
+      <div class="opt-title">Cards por métrica com gráfico inline</div>
+      <div class="opt-desc">Cada métrica em card próprio com trend e gráfico embutido.</div>
+    </div>
+  </div>
+
+</div>
+
+<div id="result"></div>
+
+<script>
+function select(opt) {
+  ['a','b'].forEach(o => document.getElementById('opt-'+o).classList.remove('selected'));
+  document.getElementById('opt-'+opt).classList.add('selected');
+  const names = { a: 'Opção A — Gráficos + lista de atividades', b: 'Opção B — Cards por métrica com gráfico inline' };
+  const r = document.getElementById('result');
+  r.style.display = 'block';
+  r.innerHTML = 'Selecionado: <span>' + names[opt] + '</span> — pode fechar e responder no chat.';
+}
+</script>
+</body>
+</html>

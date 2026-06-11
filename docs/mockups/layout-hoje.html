@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<title>Layout Mockup — Híbrido B+C</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f0f; color: #e0e0e0; padding: 32px; }
+  h1 { font-size: 18px; font-weight: 500; color: #fff; margin-bottom: 6px; }
+  .subtitle { font-size: 13px; color: #888; margin-bottom: 28px; }
+
+  .app-shell { display: flex; border: 1px solid #2a2a2a; border-radius: 12px; overflow: hidden; height: 420px; max-width: 860px; }
+  .sidebar { width: 160px; background: #141414; border-right: 1px solid #222; padding: 14px 0; flex-shrink: 0; }
+  .brand { padding: 8px 14px 14px; font-size: 13px; font-weight: 600; color: #fff; border-bottom: 1px solid #222; margin-bottom: 10px; }
+  .nav-item { padding: 9px 14px; font-size: 12px; color: #555; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: background 0.15s, color 0.15s; }
+  .nav-item:hover { color: #aaa; background: #1a1a1a; }
+  .nav-item.active { color: #fff; background: #222; border-right: 2px solid #4ade80; }
+
+  .main { flex: 1; padding: 20px; background: #0f0f0f; overflow: hidden; }
+  .page-title { font-size: 14px; font-weight: 500; color: #aaa; margin-bottom: 16px; }
+
+  .layout { display: grid; grid-template-columns: 180px 1fr; gap: 14px; height: 100%; align-content: start; }
+
+  /* Semáforo (B) */
+  .semaforo { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+  .sem-dot { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+  .dot-green { background: #14532d; box-shadow: 0 0 16px #16a34a55; }
+  .dot-off { background: #1f1f1f; opacity: 0.3; }
+  .sem-label { font-size: 13px; font-weight: 500; color: #4ade80; }
+  .sem-desc { font-size: 10px; color: #666; text-align: center; line-height: 1.6; }
+  .sem-rec { margin-top: 8px; font-size: 10px; color: #888; text-align: center; line-height: 1.5; padding-top: 10px; border-top: 1px solid #222; }
+
+  /* Card stack (C) */
+  .card-stack { display: flex; flex-direction: column; gap: 8px; }
+  .info-card { display: flex; align-items: center; gap: 12px; padding: 11px 14px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; transition: border-color 0.15s; }
+  .info-card:hover { border-color: #3a3a3a; }
+  .card-icon { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .ic-green { background: #14532d; }
+  .ic-blue  { background: #1e3a5f; }
+  .ic-amber { background: #451a03; }
+  .ic-gray  { background: #222; }
+  .c-label { font-size: 10px; color: #666; margin-bottom: 2px; }
+  .c-val   { font-size: 13px; font-weight: 500; color: #fff; }
+  .c-delta { font-size: 10px; color: #4ade80; margin-left: 6px; }
+  .c-delta.warn { color: #fbbf24; }
+</style>
+</head>
+<body>
+
+<h1>Layout híbrido B + C</h1>
+<p class="subtitle">Semáforo do B à esquerda · cards por métrica do C à direita</p>
+
+<div class="app-shell">
+  <div class="sidebar">
+    <div class="brand">⚡ Garmin Coach</div>
+    <div class="nav-item active">☀ Hoje</div>
+    <div class="nav-item">📅 Plano Semanal</div>
+    <div class="nav-item">📊 Dados</div>
+    <div class="nav-item">👤 Perfil</div>
+  </div>
+
+  <div class="main">
+    <div class="page-title">Quarta, 11 Jun · última sync 07:42</div>
+
+    <div class="layout">
+
+      <!-- Semáforo B -->
+      <div class="semaforo">
+        <div class="sem-dot dot-off">🔴</div>
+        <div class="sem-dot dot-off">🟡</div>
+        <div class="sem-dot dot-green">🟢</div>
+        <div class="sem-label">Verde</div>
+        <div class="sem-desc">Métricas normais.<br>Pronto para treinar.</div>
+        <div class="sem-rec">Pode treinar conforme planejado. Intensidade moderada.</div>
+      </div>
+
+      <!-- Cards C -->
+      <div class="card-stack">
+        <div class="info-card">
+          <div class="card-icon ic-blue">❤</div>
+          <div>
+            <div class="c-label">FC repouso hoje vs média 7d</div>
+            <div class="c-val">52 bpm <span class="c-delta">= média</span></div>
+          </div>
+        </div>
+        <div class="info-card">
+          <div class="card-icon ic-amber">⚡</div>
+          <div>
+            <div class="c-label">Body Battery matinal</div>
+            <div class="c-val">68 <span class="c-delta">acima do limite (25)</span></div>
+          </div>
+        </div>
+        <div class="info-card">
+          <div class="card-icon ic-gray">🌙</div>
+          <div>
+            <div class="c-label">Dívida de sono semanal</div>
+            <div class="c-val">0.5h <span class="c-delta warn">abaixo do limite (2h)</span></div>
+          </div>
+        </div>
+        <div class="info-card">
+          <div class="card-icon ic-green">🏃</div>
+          <div>
+            <div class="c-label">Corridas esta semana</div>
+            <div class="c-val">3 sessões <span class="c-delta">mínimo atingido</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
