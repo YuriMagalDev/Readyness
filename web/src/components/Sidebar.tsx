@@ -5,8 +5,9 @@ interface Props {
 
 const ITEMS = [
   { id: "hoje", label: "☀ Hoje" },
+  { id: "tendencias", label: "📈 Tendências" },
+  { id: "treinos", label: "🏃 Treinos" },
   { id: "plano", label: "📅 Plano Semanal" },
-  { id: "dados", label: "📊 Dados" },
 ];
 
 export default function Sidebar({ page, onNavigate }: Props) {

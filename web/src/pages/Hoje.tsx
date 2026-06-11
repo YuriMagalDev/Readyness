@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchToday } from "../api";
+import { fetchToday, postSync } from "../api";
 import type { Today } from "../types";
 import Semaforo from "../components/Semaforo";
 import MetricCard from "../components/MetricCard";
@@ -7,6 +7,7 @@ import MetricCard from "../components/MetricCard";
 export default function Hoje() {
   const [data, setData] = useState<Today | null>(null);
   const [erro, setErro] = useState("");
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     fetchToday().then(setData).catch((e) => setErro(e.message));
@@ -19,8 +20,22 @@ export default function Hoje() {
   const hrDelta = m.resting_hr_today - m.resting_hr_avg_7d;
   return (
     <>
-      <div className="page-title">Status do Dia</div>
-      <div className="page-sub">Prontidão para treino hoje</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div className="page-title">Status do Dia</div>
+          <div className="page-sub">Prontidão para treino hoje</div>
+        </div>
+        <button className="btn-gen" disabled={syncing}
+          onClick={async () => { setSyncing(true); try { await postSync(); } finally { setSyncing(false); } }}>
+          {syncing ? "Sincronizando…" : "🔄 Sincronizar"}
+        </button>
+      </div>
+      {data.daily_insight && (
+        <div className="card" style={{ marginBottom: 16, borderLeft: "3px solid var(--green)" }}>
+          <div style={{ fontSize: 11, color: "var(--text-faint)", marginBottom: 4 }}>💡 Insight do dia</div>
+          <div style={{ fontSize: 13, color: "var(--text)" }}>{data.daily_insight}</div>
+        </div>
+      )}
       <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 16, alignItems: "start" }}>
         <Semaforo status={data.status} motivo={data.motivo} recomendacao={data.recomendacao} />
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
