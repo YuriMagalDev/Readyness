@@ -90,3 +90,27 @@ class GarminClient:
             )
             results.append(data)
         return results
+
+    def get_daily_summary(self, day: str) -> dict:
+        return self._cached(
+            f"summary_{day}",
+            lambda: self._client.get_stats_and_body(day),
+        )
+
+    def get_race_predictions(self) -> dict:
+        return self._cached(
+            f"racepred_{date.today()}",
+            lambda: self._client.get_race_predictions(),
+        )
+
+    def get_activity_splits(self, activity_id: int) -> dict:
+        return self._cached(
+            f"splits_{activity_id}",
+            lambda: self._client.get_activity_splits(activity_id),
+        )
+
+    def get_activities_by_date(self, start: str, end: str) -> list:
+        return self._cached(
+            f"acts_{start}_{end}",
+            lambda: self._client.get_activities_by_date(start, end),
+        )
