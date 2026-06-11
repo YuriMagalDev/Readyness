@@ -56,3 +56,32 @@ def test_morning_body_battery():
     battery_data = [[{"charged": 65, "drained": 0}], [{"charged": 72, "drained": 0}]]
     avg = dp.morning_body_battery(battery_data)
     assert avg == 68.5
+
+def test_weekly_trend_queda():
+    dp = DataProcessor()
+    # 7d recentes média 52, 7d anteriores média 54 → delta -2
+    series = [54, 54, 54, 54, 54, 54, 54, 52, 52, 52, 52, 52, 52, 52]
+    result = dp.weekly_trend(series, unidade="bpm")
+    assert result["delta"] == -2.0
+    assert "bpm" in result["label"]
+    assert "▼" in result["label"]
+
+def test_weekly_trend_alta():
+    dp = DataProcessor()
+    series = [50] * 7 + [55] * 7
+    result = dp.weekly_trend(series, unidade="bpm")
+    assert result["delta"] == 5.0
+    assert "▲" in result["label"]
+
+def test_weekly_trend_estavel():
+    dp = DataProcessor()
+    series = [52] * 14
+    result = dp.weekly_trend(series, unidade="bpm")
+    assert result["delta"] == 0.0
+    assert "estável" in result["label"].lower()
+
+def test_weekly_trend_dados_insuficientes():
+    dp = DataProcessor()
+    result = dp.weekly_trend([52, 53], unidade="bpm")
+    assert result["delta"] == 0.0
+    assert result["label"] == ""

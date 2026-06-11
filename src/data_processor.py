@@ -66,3 +66,23 @@ class DataProcessor:
                 and a["date"] >= week_ago
             ),
         }
+
+    def weekly_trend(self, series: list, unidade: str = "") -> dict:
+        """Compara média dos 7 valores mais recentes vs os 7 anteriores.
+        `series` ordenada do mais antigo ao mais recente. < 14 pontos → vazio."""
+        valores = [v for v in series if v is not None]
+        if len(valores) < 14:
+            return {"delta": 0.0, "label": ""}
+        recentes = valores[-7:]
+        anteriores = valores[-14:-7]
+        media_rec = sum(recentes) / 7
+        media_ant = sum(anteriores) / 7
+        delta = round(media_rec - media_ant, 1)
+        if delta == 0.0:
+            return {"delta": 0.0, "label": f"estável vs semana passada"}
+        seta = "▲" if delta > 0 else "▼"
+        sufixo = f" {unidade}" if unidade else ""
+        return {
+            "delta": delta,
+            "label": f"{seta} {abs(delta)}{sufixo} vs semana passada",
+        }
