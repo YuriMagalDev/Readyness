@@ -46,3 +46,33 @@ def test_build_plan_payload():
         payload = services.build_plan(client)
     assert "corrida" in payload
     assert "musculacao" in payload
+
+
+from fastapi.testclient import TestClient
+
+
+def test_today_route():
+    with patch("api.main.GarminClient") as MockClient, \
+         patch("api.main.services.build_today", return_value={"status": "verde", "metrics": {}}):
+        from api.main import app
+        resp = TestClient(app).get("/api/today")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "verde"
+
+
+def test_plan_route():
+    with patch("api.main.GarminClient"), \
+         patch("api.main.services.build_plan", return_value={"corrida": [], "musculacao": []}):
+        from api.main import app
+        resp = TestClient(app).post("/api/plan")
+    assert resp.status_code == 200
+    assert "corrida" in resp.json()
+
+
+def test_today_route_garmin_error_returns_503():
+    with patch("api.main.GarminClient"), \
+         patch("api.main.services.build_today", side_effect=RuntimeError("auth failed")):
+        from api.main import app
+        resp = TestClient(app).get("/api/today")
+    assert resp.status_code == 503
+    assert "erro" in resp.json()
