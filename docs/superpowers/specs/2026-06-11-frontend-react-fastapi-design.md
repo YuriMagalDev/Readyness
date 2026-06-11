@@ -202,3 +202,14 @@ Nenhum outro módulo de `src/` muda.
 - Mobile/responsivo além do básico.
 - Edição de perfil pela UI (continua editando `athlete_profile.json` à mão).
 - Deploy remoto. Roda só em localhost.
+
+### Deploy futuro (considerar depois)
+Possível, mas não agora. Split necessário:
+- **React → Vercel** (estático, trivial).
+- **FastAPI → host com disco** (Railway/Render/Fly), NÃO Vercel serverless:
+  `garminconnect` guarda tokens de sessão em disco e o cache SQLite precisa persistir
+  entre requests — serverless perde ambos a cada cold start, causando re-login e
+  rate-limit do Garmin.
+- **Auth obrigatória** antes de expor: app carrega credenciais Garmin + chave Claude
+  pessoais; público sem login = qualquer um acessa dados do usuário.
+- Trocar SQLite por store externo (Postgres/Redis) se for pro serverless.
