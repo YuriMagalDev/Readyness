@@ -11,6 +11,7 @@ export interface Today {
   motivo: string;
   recomendacao: string;
   metrics: TodayMetrics;
+  daily_insight?: string;
 }
 
 export interface PlanItem {
@@ -50,4 +51,46 @@ export interface Dados {
   fc_trend: Trend;
   battery_trend: Trend;
   atividades: Atividade[];
+}
+
+export interface TrendInfo {
+  slope: number;
+  direction: "subindo" | "descendo" | "estável";
+}
+
+export interface MetricTrend {
+  series: SeriePoint[];
+  trend: TrendInfo;
+}
+
+export interface Trends {
+  period: number;
+  metrics: Record<string, MetricTrend>;
+  insights: string[];
+}
+
+export interface ActivitySummary {
+  activity_id: number;
+  date: string;
+  name: string;
+  type: string;
+  is_strength: number;
+  distance_m: number | null;
+  duration_min: number | null;
+  pace_min_km: number | null;
+  avg_hr: number | null;
+}
+
+export interface Split {
+  distance_m: number | null;
+  duration_s: number | null;
+  pace_min_km: number | null;
+  avg_hr: number | null;
+  cadence: number | null;
+}
+
+export interface ActivityDetail {
+  activity: ActivitySummary;
+  splits: Split[];
+  insight: string;
 }
