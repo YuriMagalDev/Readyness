@@ -11,7 +11,7 @@ def _fake_client():
     }]
     client.get_heart_rate_stats.return_value = [{"restingHeartRate": 52}] * 14
     client.get_sleep.return_value = [{"dailySleepDTO": {"sleepTimeSeconds": 25200}}] * 14
-    client.get_body_battery.return_value = [[{"charged": 65, "drained": 0}]] * 7
+    client.get_body_battery.return_value = [[{"charged": 65, "drained": 0}]] * 14
     return client
 
 
@@ -32,6 +32,9 @@ def test_build_data_payload_has_trends():
     payload = services.build_data(client)
     assert "fc_series" in payload
     assert "fc_trend" in payload
+    # 14 pontos → weekly_trend computa label (não vazio)
+    assert payload["fc_trend"]["label"] != ""
+    assert payload["battery_trend"]["label"] != ""
     assert "atividades" in payload
     assert isinstance(payload["atividades"], list)
 

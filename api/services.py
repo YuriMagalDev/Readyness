@@ -44,7 +44,12 @@ def _datas(n: int) -> list:
 
 
 def build_data(client) -> dict:
-    dp, _, activities, hr_data, sleep_data, battery_data = _load_context(client)
+    dp = DataProcessor()
+    activities = client.get_activities(28)
+    # 14 dias: weekly_trend compara 7 recentes vs 7 anteriores (precisa de 14 pontos)
+    hr_data = client.get_heart_rate_stats(14)
+    sleep_data = client.get_sleep(14)
+    battery_data = client.get_body_battery(14)
 
     # séries do mais antigo ao mais recente (hr_data[0] = hoje → inverter)
     fc = [d.get("restingHeartRate") for d in reversed(hr_data)]
