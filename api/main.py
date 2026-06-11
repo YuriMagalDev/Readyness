@@ -55,7 +55,12 @@ def today():
 
 @app.post("/api/plan")
 def plan():
-    return _safe(lambda: services.build_plan(get_client()), code=502)
+    return _safe(lambda: services.build_plan(get_client(), get_db()), code=502)
+
+
+@app.get("/api/plan")
+def plan_status():
+    return _safe(lambda: services.build_plan_status(get_db()), code=503)
 
 
 @app.get("/api/data")

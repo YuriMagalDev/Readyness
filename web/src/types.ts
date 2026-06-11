@@ -26,6 +26,27 @@ export interface Plan {
   musculacao: PlanItem[];
 }
 
+export interface PlanSessionStatus {
+  dia: string;
+  descricao: string;
+  duracao: number;
+  intensidade: string;
+  date: string;
+  status: "feito" | "pendente" | "furou";
+}
+
+export interface PlanMatch {
+  corrida: PlanSessionStatus[];
+  musculacao: PlanSessionStatus[];
+}
+
+export interface PlanStatus {
+  plan: Plan | null;
+  match: PlanMatch | null;
+  week_start: string;
+  created_at?: string;
+}
+
 export interface SeriePoint {
   data: string;
   valor: number | null;

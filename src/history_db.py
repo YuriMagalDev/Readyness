@@ -40,6 +40,10 @@ class HistoryDB:
         with self._connect() as conn:
             conn.execute(f"CREATE TABLE IF NOT EXISTS daily_snapshot ({snap_cols})")
             conn.execute(f"CREATE TABLE IF NOT EXISTS activity ({act_cols})")
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS weekly_plan ("
+                "week_start TEXT PRIMARY KEY, plan_json TEXT NOT NULL, created_at TEXT NOT NULL)"
+            )
 
     def _upsert(self, table: str, columns: list, row: dict):
         cols = [c for c in columns if c in row]
@@ -82,6 +86,26 @@ class HistoryDB:
                 "SELECT * FROM activity WHERE activity_id = ?", (activity_id,)
             ).fetchone()
         return dict(row) if row else None
+
+    def upsert_plan(self, week_start: str, plan: dict, created_at: str):
+        import json as _json
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT INTO weekly_plan (week_start, plan_json, created_at) VALUES (?, ?, ?) "
+                "ON CONFLICT(week_start) DO UPDATE SET plan_json=excluded.plan_json, "
+                "created_at=excluded.created_at",
+                (week_start, _json.dumps(plan), created_at),
+            )
+
+    def get_plan(self, week_start: str):
+        import json as _json
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT plan_json, created_at FROM weekly_plan WHERE week_start = ?", (week_start,)
+            ).fetchone()
+        if row is None:
+            return None
+        return {"plan": _json.loads(row["plan_json"]), "created_at": row["created_at"]}
 
     def latest_snapshot_date(self):
         with self._connect() as conn:

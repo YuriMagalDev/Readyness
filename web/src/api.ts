@@ -1,4 +1,4 @@
-import type { Today, Plan, Dados, Trends, ActivitySummary, ActivityDetail } from "./types";
+import type { Today, Plan, Dados, Trends, ActivitySummary, ActivityDetail, PlanStatus } from "./types";
 
 async function get<T>(url: string): Promise<T> {
   const resp = await fetch(url);
@@ -20,6 +20,8 @@ export async function generatePlan(): Promise<Plan> {
   }
   return resp.json();
 }
+
+export const fetchPlanStatus = () => get<PlanStatus>("/api/plan");
 
 export const fetchTrends = (period = 30) => get<Trends>(`/api/trends?period=${period}`);
 export const fetchActivities = (period = 30) =>

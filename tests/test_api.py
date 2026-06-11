@@ -136,6 +136,47 @@ def test_build_activity_detail_fetches_splits_if_missing():
     client.get_activity_splits.assert_called_once_with(1)
 
 
+def test_build_plan_saves_to_db():
+    client = _fake_client()
+    db = _MM()
+    db.get_plan.return_value = None
+    with patch("api.services.TrainingPlanner") as MockPlanner:
+        MockPlanner.return_value.generate_weekly_plan.return_value = {"corrida": [], "musculacao": []}
+        services.build_plan(client, db)
+    db.upsert_plan.assert_called_once()
+
+
+def test_build_plan_status_no_saved_plan():
+    db = _MM()
+    db.get_plan.return_value = None
+    import datetime
+    out = services.build_plan_status(db, today=datetime.date(2026, 6, 11))
+    assert out["plan"] is None
+    assert out["week_start"] == "2026-06-08"
+
+
+def test_build_plan_status_matches_activities():
+    import datetime
+    db = _MM()
+    db.get_plan.return_value = {
+        "plan": {"corrida": [{"dia": "Segunda", "descricao": "x", "duracao": 40, "intensidade": "leve"}],
+                 "musculacao": []},
+        "created_at": "2026-06-08",
+    }
+    db.get_activities.return_value = [{"date": "2026-06-08", "type": "running", "is_strength": 0}]
+    out = services.build_plan_status(db, today=datetime.date(2026, 6, 10))
+    assert out["match"]["corrida"][0]["status"] == "feito"
+
+
+def test_plan_status_route():
+    with patch("api.main.get_db"), \
+         patch("api.main.services.build_plan_status", return_value={"plan": None, "match": None, "week_start": "2026-06-08"}):
+        from api.main import app
+        resp = TestClient(app).get("/api/plan")
+    assert resp.status_code == 200
+    assert resp.json()["plan"] is None
+
+
 def test_trends_route():
     with patch("api.main.GarminClient"), patch("api.main.get_db"), \
          patch("api.main.services.build_trends", return_value={"metrics": {}, "insights": []}):

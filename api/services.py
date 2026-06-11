@@ -8,6 +8,7 @@ from src.training_planner import TrainingPlanner
 from src.analytics import Analytics
 from src.insight_engine import InsightEngine
 from src.extractors import splits_from_garmin
+from src.plan_tracker import week_start_of, match_plan
 
 
 def _load_context(client):
@@ -42,9 +43,37 @@ def build_today(client, db=None) -> dict:
     return payload
 
 
-def build_plan(client) -> dict:
+def build_plan(client, db=None) -> dict:
     _, context, *_ = _load_context(client)
-    return TrainingPlanner().generate_weekly_plan(context)
+    hoje = date.today()
+    week_start = week_start_of(hoje)
+
+    # alimenta o gerador com o cumprimento da semana atual (se houver plano salvo)
+    if db is not None:
+        saved = db.get_plan(week_start)
+        if saved:
+            acts = db.get_activities(week_start, hoje.isoformat())
+            context["cumprimento_semana"] = match_plan(saved["plan"], acts, hoje, week_start)
+
+    plan = TrainingPlanner().generate_weekly_plan(context)
+
+    if db is not None:
+        db.upsert_plan(week_start, plan, hoje.isoformat())
+    return plan
+
+
+def build_plan_status(db, today: date = None) -> dict:
+    today = today or date.today()
+    week_start = week_start_of(today)
+    saved = db.get_plan(week_start)
+    if saved is None:
+        return {"plan": None, "match": None, "week_start": week_start}
+    acts = db.get_activities(week_start, today.isoformat())
+    match = match_plan(saved["plan"], acts, today, week_start)
+    return {
+        "plan": saved["plan"], "match": match,
+        "week_start": week_start, "created_at": saved["created_at"],
+    }
 
 
 def _datas(n: int) -> list:
