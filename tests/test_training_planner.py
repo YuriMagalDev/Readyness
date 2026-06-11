@@ -11,44 +11,58 @@ BASE_CONTEXT = {
     "run_sessions_7d": 2,
 }
 
-MOCK_PLAN = json.dumps([
-    {"dia": "Segunda", "tipo": "corrida", "descricao": "Corrida leve 5km", "duracao": 40, "intensidade": "leve"},
-    {"dia": "Terça", "tipo": "musculação", "descricao": "Peito e tríceps", "duracao": 60, "intensidade": "moderada"},
-    {"dia": "Quarta", "tipo": "corrida", "descricao": "Corrida moderada 7km", "duracao": 50, "intensidade": "moderada"},
-    {"dia": "Quinta", "tipo": "descanso", "descricao": "Recuperação ativa", "duracao": 0, "intensidade": "nenhuma"},
-    {"dia": "Sexta", "tipo": "corrida", "descricao": "Corrida intervalada", "duracao": 45, "intensidade": "alta"},
-    {"dia": "Sábado", "tipo": "musculação", "descricao": "Costas e bíceps", "duracao": 60, "intensidade": "moderada"},
-    {"dia": "Domingo", "tipo": "descanso", "descricao": "Descanso total", "duracao": 0, "intensidade": "nenhuma"},
-])
+MOCK_PLAN = json.dumps({
+    "corrida": [
+        {"dia": "Segunda", "descricao": "Corrida leve 5km", "duracao": 40, "intensidade": "leve"},
+        {"dia": "Quarta", "descricao": "Corrida moderada 7km", "duracao": 50, "intensidade": "moderada"},
+        {"dia": "Sexta", "descricao": "Corrida intervalada", "duracao": 45, "intensidade": "alta"},
+    ],
+    "musculacao": [
+        {"dia": "Segunda", "descricao": "Peito e tríceps", "duracao": 60, "intensidade": "moderada"},
+        {"dia": "Quinta", "descricao": "Costas e bíceps", "duracao": 60, "intensidade": "moderada"},
+    ],
+})
 
 @patch("src.training_planner.ask_coach", return_value=MOCK_PLAN)
-def test_plan_has_7_days(mock_ask):
-    planner = TrainingPlanner()
-    plan = planner.generate_weekly_plan(BASE_CONTEXT)
-    assert len(plan) == 7
+def test_plan_returns_two_grids(mock_ask):
+    plan = TrainingPlanner().generate_weekly_plan(BASE_CONTEXT)
+    assert "corrida" in plan
+    assert "musculacao" in plan
 
 @patch("src.training_planner.ask_coach", return_value=MOCK_PLAN)
-def test_plan_has_minimum_3_run_days(mock_ask):
-    planner = TrainingPlanner()
-    plan = planner.generate_weekly_plan(BASE_CONTEXT)
-    run_days = [d for d in plan if d["tipo"] == "corrida"]
-    assert len(run_days) >= 3
+def test_plan_minimum_3_run_days(mock_ask):
+    plan = TrainingPlanner().generate_weekly_plan(BASE_CONTEXT)
+    assert len(plan["corrida"]) >= 3
 
 @patch("src.training_planner.ask_coach", return_value=MOCK_PLAN)
 def test_plan_calls_sonnet(mock_ask):
-    planner = TrainingPlanner()
-    planner.generate_weekly_plan(BASE_CONTEXT)
-    call_kwargs = mock_ask.call_args
-    depth = call_kwargs[1].get("depth") or call_kwargs[0][2]
+    TrainingPlanner().generate_weekly_plan(BASE_CONTEXT)
+    call = mock_ask.call_args
+    depth = call[1].get("depth") or call[0][2]
     assert depth == "deep"
 
 @patch("src.training_planner.ask_coach", return_value=MOCK_PLAN)
 def test_plan_items_have_required_fields(mock_ask):
-    planner = TrainingPlanner()
-    plan = planner.generate_weekly_plan(BASE_CONTEXT)
-    for item in plan:
+    plan = TrainingPlanner().generate_weekly_plan(BASE_CONTEXT)
+    for item in plan["corrida"] + plan["musculacao"]:
         assert "dia" in item
-        assert "tipo" in item
         assert "descricao" in item
         assert "duracao" in item
         assert "intensidade" in item
+
+@patch("src.training_planner.ask_coach", return_value=MOCK_PLAN)
+def test_same_day_run_and_strength_allowed(mock_ask):
+    plan = TrainingPlanner().generate_weekly_plan(BASE_CONTEXT)
+    run_days = {d["dia"] for d in plan["corrida"]}
+    gym_days = {d["dia"] for d in plan["musculacao"]}
+    assert "Segunda" in run_days
+    assert "Segunda" in gym_days
+
+@patch("src.training_planner.ask_coach", return_value=json.dumps({
+    "corrida": [{"dia": "Segunda", "descricao": "x", "duracao": 30, "intensidade": "leve"}],
+    "musculacao": [],
+}))
+def test_plan_raises_when_under_3_runs(mock_ask):
+    import pytest
+    with pytest.raises(ValueError):
+        TrainingPlanner().generate_weekly_plan(BASE_CONTEXT)
