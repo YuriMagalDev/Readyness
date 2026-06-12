@@ -42,21 +42,60 @@ def build_today(client, db=None, force=False) -> dict:
         analytics = Analytics().summary(snaps)
         payload["daily_insight"] = InsightEngine(db=db).daily_insight(context, analytics, force=force)
         payload["parametros"] = _param_deltas(snaps)
+        # topo reflete o dado recém-sincronizado: sobrepõe FC repouso de hoje pelo snapshot
+        if snaps and snaps[-1].get("resting_hr") is not None:
+            payload["metrics"]["resting_hr_today"] = snaps[-1]["resting_hr"]
     return payload
 
 
-# Parâmetros com variação vs dia anterior. lower_is_better marca o que é bom cair.
+# Parâmetros com variação vs dia anterior.
+# (key, label, unidade, icon, lower_is_better, kind). kind: "num" | "time" (segundos→mm:ss)
 _PARAMS = [
-    ("body_battery_high", "Body Battery", "", "⚡", False),
-    ("stress_avg", "Stress médio", "", "🧠", True),
-    ("calories_total", "Calorias", " kcal", "🔥", False),
+    ("body_battery_high", "Body Battery", "", "⚡", False, "num"),
+    ("stress_avg", "Stress médio", "", "🧠", True, "num"),
+    ("calories_total", "Calorias", " kcal", "🔥", False, "num"),
+    ("steps", "Passos", "", "👟", False, "num"),
+    ("floors", "Andares", "", "🪜", False, "num"),
+    ("sleep_hours", "Sono", " h", "🌙", False, "num"),
+    ("sleep_score", "Score de sono", "", "💤", False, "num"),
+    ("intensity_minutes", "Min. intensidade", " min", "🔥", False, "num"),
+    ("race_pred_5k", "Prova 5k", "", "🏁", True, "time"),
+    ("race_pred_10k", "Prova 10k", "", "🏁", True, "time"),
 ]
+
+
+def _fmt_valor(kind: str, val, unidade: str) -> str:
+    """Formata o valor pra exibição. time = segundos → [h:]mm:ss."""
+    if val is None:
+        return ""
+    if kind == "time":
+        secs = int(round(val))
+        m, s = divmod(secs, 60)
+        if m >= 60:
+            h, m = divmod(m, 60)
+            return f"{h}:{m:02d}:{s:02d}"
+        return f"{m}:{s:02d}"
+    num = int(val) if float(val).is_integer() else round(val, 1)
+    return f"{num}{unidade}"
+
+
+def _fmt_delta(kind: str, delta, unidade: str) -> str:
+    """Delta formatado com sinal. None → ''."""
+    if delta is None:
+        return ""
+    sinal = "+" if delta > 0 else "-"
+    mag = abs(delta)
+    if kind == "time":
+        m, s = divmod(int(round(mag)), 60)
+        return f"{sinal}{m}:{s:02d}"
+    num = int(mag) if float(mag).is_integer() else round(mag, 1)
+    return f"{sinal}{num}{unidade}"
 
 
 def _param_deltas(snaps: list) -> list:
     """Compara os 2 snapshots mais recentes (hoje vs dia anterior)."""
     out = []
-    for key, label, unidade, icon, lower_is_better in _PARAMS:
+    for key, label, unidade, icon, lower_is_better, kind in _PARAMS:
         # pega os 2 dias mais recentes com valor não-nulo desse parâmetro
         vals = [s for s in snaps if s.get(key) is not None]
         if not vals:
@@ -71,13 +110,15 @@ def _param_deltas(snaps: list) -> list:
             direcao = "subiu"
         else:
             direcao = "desceu"
-        # sentido bom/ruim: stress subir é ruim; bateria/calorias é contexto
+        # sentido bom/ruim: stress/predição subir é ruim; bateria/passos é contexto
         bom = None
         if delta and lower_is_better:
             bom = delta < 0
         out.append({
             "label": label, "icon": icon, "valor": valor, "unidade": unidade,
-            "delta": delta, "direcao": direcao, "bom": bom,
+            "valor_fmt": _fmt_valor(kind, valor, unidade),
+            "delta": delta, "delta_fmt": _fmt_delta(kind, delta, unidade),
+            "direcao": direcao, "bom": bom,
             "data": cur["date"], "data_anterior": prev["date"] if prev else None,
         })
     return out

@@ -106,12 +106,12 @@ export default function Hoje() {
                 <div key={p.label} className="card">
                   <div style={{ fontSize: 11, color: "var(--text-faint)" }}>{p.icon} {p.label}</div>
                   <div style={{ fontSize: 22, fontWeight: 500, color: "#fff", marginTop: 2 }}>
-                    {p.valor}{p.unidade}
+                    {p.valor_fmt}
                   </div>
                   <div style={{ fontSize: 11, color: cor, marginTop: 4 }}>
                     {p.delta === null
                       ? "sem dia anterior"
-                      : `${seta} ${p.delta > 0 ? "+" : ""}${p.delta}${p.unidade} (${p.direcao})`}
+                      : `${seta} ${p.delta_fmt} (${p.direcao})`}
                   </div>
                 </div>
               );

@@ -158,6 +158,47 @@ def test_param_deltas_single_day_no_delta():
     assert out[0]["direcao"] == "estável"
 
 
+def test_param_deltas_includes_new_metrics():
+    snaps = [
+        {"date": "2026-06-10", "steps": 8000, "sleep_hours": 7.0, "intensity_minutes": 30},
+        {"date": "2026-06-11", "steps": 10000, "sleep_hours": 6.5, "intensity_minutes": 45},
+    ]
+    out = services._param_deltas(snaps)
+    passos = next(p for p in out if p["label"] == "Passos")
+    assert passos["valor"] == 10000
+    assert passos["valor_fmt"] == "10000"
+    assert passos["delta_fmt"] == "+2000"
+    sono = next(p for p in out if p["label"] == "Sono")
+    assert sono["valor_fmt"] == "6.5 h"
+
+
+def test_param_deltas_formats_race_prediction_as_time():
+    # 5k em 1500s = 25:00, dia anterior 1530s = 25:30 → melhorou 30s
+    snaps = [
+        {"date": "2026-06-10", "race_pred_5k": 1530},
+        {"date": "2026-06-11", "race_pred_5k": 1500},
+    ]
+    out = services._param_deltas(snaps)
+    prova = next(p for p in out if p["label"] == "Prova 5k")
+    assert prova["valor_fmt"] == "25:00"
+    assert prova["delta_fmt"] == "-0:30"
+    assert prova["bom"] is True  # tempo caindo é bom
+
+
+def test_build_today_overrides_resting_hr_from_snapshot():
+    client = _fake_client()
+    db = _hist_with_snapshots()
+    # snapshot mais recente tem resting_hr = 50 + 13 = 63
+    db.get_snapshots.return_value = [{"date": "2026-06-12", "resting_hr": 48}]
+    with patch("api.services.HealthMonitor") as MockMon, \
+         patch("api.services.InsightEngine") as MockEng:
+        MockMon.return_value.check.return_value = {
+            "status": "verde", "motivo": "ok", "recomendacao": "x"}
+        MockEng.return_value.daily_insight.return_value = "ins"
+        payload = services.build_today(client, db)
+    assert payload["metrics"]["resting_hr_today"] == 48
+
+
 def test_build_plan_saves_to_db():
     client = _fake_client()
     db = _MM()
