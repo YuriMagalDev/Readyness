@@ -227,6 +227,28 @@ def test_activity_detail_route():
     assert resp.json()["insight"] == "ok"
 
 
+def test_build_today_passes_db_to_engine_and_force():
+    client = _fake_client()
+    db = _hist_with_snapshots()
+    with patch("api.services.HealthMonitor") as MockMon, \
+         patch("api.services.InsightEngine") as MockEng:
+        MockMon.return_value.check.return_value = {
+            "status": "verde", "motivo": "ok", "recomendacao": "x"}
+        MockEng.return_value.daily_insight.return_value = "ins"
+        services.build_today(client, db, force=True)
+    MockEng.assert_called_once_with(db=db)
+    assert MockEng.return_value.daily_insight.call_args[1]["force"] is True
+
+
+def test_build_trends_passes_force():
+    db = _hist_with_snapshots()
+    with patch("api.services.InsightEngine") as MockEng:
+        MockEng.return_value.trend_insights.return_value = ["a"]
+        services.build_trends(db, period=14, force=True)
+    assert MockEng.return_value.trend_insights.call_args[1]["force"] is True
+    assert MockEng.return_value.trend_insights.call_args[1]["period"] == 14
+
+
 def test_sync_route():
     with patch("api.main.GarminClient"), patch("api.main.get_db"), \
          patch("api.main.Ingestor") as MockIng:

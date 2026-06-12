@@ -21,7 +21,7 @@ def _load_context(client):
     return dp, context, activities, hr_data, sleep_data, battery_data
 
 
-def build_today(client, db=None) -> dict:
+def build_today(client, db=None, force=False) -> dict:
     dp, context, *_ = _load_context(client)
     status = HealthMonitor().check(context)
     payload = {
@@ -40,7 +40,7 @@ def build_today(client, db=None) -> dict:
         start, end = _period_range(30)
         snaps = db.get_snapshots(start, end)
         analytics = Analytics().summary(snaps)
-        payload["daily_insight"] = InsightEngine().daily_insight(context, analytics)
+        payload["daily_insight"] = InsightEngine(db=db).daily_insight(context, analytics, force=force)
         payload["parametros"] = _param_deltas(snaps)
     return payload
 
@@ -167,11 +167,11 @@ def _period_range(period: int):
     return start.isoformat(), end.isoformat()
 
 
-def build_trends(db, period: int = 30) -> dict:
+def build_trends(db, period: int = 30, force: bool = False) -> dict:
     start, end = _period_range(period)
     snaps = db.get_snapshots(start, end)
     metrics = Analytics().summary(snaps)
-    insights = InsightEngine().trend_insights(metrics)
+    insights = InsightEngine(db=db).trend_insights(metrics, period=period, force=force)
     return {"period": period, "metrics": metrics, "insights": insights}
 
 
@@ -191,5 +191,5 @@ def build_activity_detail(db, client, activity_id: int) -> dict:
         splits = splits_from_garmin(raw)
         act["splits_json"] = _json.dumps(splits)
         db.upsert_activity(act)
-    insight = InsightEngine().activity_insight(act, splits)
+    insight = InsightEngine(db=db).activity_insight(act, splits)
     return {"activity": act, "splits": splits, "insight": insight}
