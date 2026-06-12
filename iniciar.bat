@@ -5,5 +5,5 @@ if not exist "web\dist" (
   cd web && call npm install && call npm run build && cd ..
 )
 start "" http://localhost:8000
-uvicorn api.main:app --port 8000
+uvicorn api.main:app --port 8000 --reload
 pause

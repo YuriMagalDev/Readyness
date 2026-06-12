@@ -27,8 +27,11 @@ class InsightEngine:
         if self.db is not None and not force:
             hit = self.db.get_insight(kind, key)
             if hit is not None:
+                print(f"[insight] cache HIT  {key} (sem chamada à API)", flush=True)
                 return hit
         result = compute()
+        motivo = "FORCE" if force else "miss"
+        print(f"[insight] GERADO ({motivo}) {key} (chamou API)", flush=True)
         if self.db is not None and not is_fallback(result):
             self.db.set_insight(kind, key, result, date.today().isoformat())
         return result
