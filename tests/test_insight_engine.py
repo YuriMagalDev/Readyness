@@ -1,5 +1,5 @@
 import json
-from unittest.mock import patch
+from unittest.mock import patch, ANY as _ANY_DATE, MagicMock
 from src.insight_engine import InsightEngine
 
 ANALYTICS = {
@@ -48,3 +48,55 @@ def test_daily_insight_fallback(mock_ask):
 def test_activity_insight_parses(mock_ask):
     out = InsightEngine().activity_insight({"name": "Corrida", "pace_min_km": 5.0}, [])
     assert out == "Pace consistente"
+
+
+@patch("src.insight_engine.ask_coach", return_value=json.dumps({"insight": "x"}))
+def test_daily_insight_cache_hit_calls_api_once(mock_ask):
+    db = MagicMock()
+    db.get_insight.side_effect = [None, "x"]  # 1st miss, 2nd hit
+    eng = InsightEngine(db=db)
+    eng.daily_insight({"a": 1}, ANALYTICS)
+    out2 = eng.daily_insight({"a": 1}, ANALYTICS)
+    assert mock_ask.call_count == 1
+    assert out2 == "x"
+    db.set_insight.assert_called_once()
+
+
+@patch("src.insight_engine.ask_coach", return_value=json.dumps({"insight": "x"}))
+def test_daily_insight_force_recomputes(mock_ask):
+    db = MagicMock()
+    db.get_insight.return_value = "cached"
+    eng = InsightEngine(db=db)
+    out = eng.daily_insight({"a": 1}, ANALYTICS, force=True)
+    assert mock_ask.call_count == 1
+    assert out == "x"
+
+
+@patch("src.insight_engine.ask_coach", return_value="boom")
+def test_daily_insight_fallback_not_cached(mock_ask):
+    db = MagicMock()
+    db.get_insight.return_value = None
+    eng = InsightEngine(db=db)
+    eng.daily_insight({}, ANALYTICS)
+    db.set_insight.assert_not_called()
+
+
+@patch("src.insight_engine.ask_coach", return_value=json.dumps({"insights": ["a"]}))
+def test_trend_insight_cache_hit(mock_ask):
+    db = MagicMock()
+    db.get_insight.side_effect = [None, ["a"]]
+    eng = InsightEngine(db=db)
+    eng.trend_insights(ANALYTICS, period=30)
+    eng.trend_insights(ANALYTICS, period=30)
+    assert mock_ask.call_count == 1
+
+
+@patch("src.insight_engine.ask_coach", return_value=json.dumps({"insight": "ok"}))
+def test_activity_insight_cache_by_id(mock_ask):
+    db = MagicMock()
+    db.get_insight.side_effect = [None, "ok"]
+    eng = InsightEngine(db=db)
+    eng.activity_insight({"activity_id": 7, "name": "C"}, [])
+    eng.activity_insight({"activity_id": 7, "name": "C"}, [])
+    assert mock_ask.call_count == 1
+    db.set_insight.assert_called_once_with("activity", "activity:7", "ok", _ANY_DATE)
