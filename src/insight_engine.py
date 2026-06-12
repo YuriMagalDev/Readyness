@@ -46,7 +46,7 @@ Retorne EXATAMENTE este JSON: {{"insights": ["...", "..."]}}"""
             if not data or not isinstance(data.get("insights"), list) or not data["insights"]:
                 return FALLBACK_TRENDS
             return data["insights"]
-        return self._cached("trend", key, compute, lambda r: r is FALLBACK_TRENDS, force=force)
+        return self._cached("trend", key, compute, lambda r: r == FALLBACK_TRENDS, force=force)
 
     def daily_insight(self, context: dict, analytics: dict, force: bool = False) -> str:
         key = f"daily:{date.today().isoformat()}"
