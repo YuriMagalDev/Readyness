@@ -9,9 +9,24 @@ export default function Hoje() {
   const [erro, setErro] = useState("");
   const [syncing, setSyncing] = useState(false);
 
-  useEffect(() => {
-    fetchToday().then(setData).catch((e) => setErro(e.message));
-  }, []);
+  function carregar() {
+    return fetchToday().then(setData).catch((e) => setErro(e.message));
+  }
+
+  useEffect(() => { carregar(); }, []);
+
+  async function sincronizar() {
+    setSyncing(true);
+    setErro("");
+    try {
+      await postSync();    // grava o dia no histórico
+      await carregar();    // recarrega métricas + parâmetros atualizados
+    } catch (e) {
+      setErro((e as Error).message);
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   if (erro) return <div className="banner-erro">{erro}</div>;
   if (!data) return <div className="page-sub">Carregando…</div>;
@@ -25,8 +40,7 @@ export default function Hoje() {
           <div className="page-title">Status do Dia</div>
           <div className="page-sub">Prontidão para treino hoje</div>
         </div>
-        <button className="btn-gen" disabled={syncing}
-          onClick={async () => { setSyncing(true); try { await postSync(); } finally { setSyncing(false); } }}>
+        <button className="btn-gen" disabled={syncing} onClick={sincronizar}>
           {syncing ? "Sincronizando…" : "🔄 Sincronizar"}
         </button>
       </div>
@@ -57,6 +71,35 @@ export default function Hoje() {
             deltaWarn={m.run_sessions_7d < 3} />
         </div>
       </div>
+
+      {data.parametros && data.parametros.length > 0 && (
+        <>
+          <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase",
+            letterSpacing: ".05em", color: "var(--text-faint)", margin: "24px 0 10px" }}>
+            Parâmetros · variação vs dia anterior
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+            {data.parametros.map((p) => {
+              const seta = p.direcao === "subiu" ? "▲" : p.direcao === "desceu" ? "▼" : "—";
+              // cor: verde se "bom" true, vermelho se "bom" false, neutro se null
+              const cor = p.bom === true ? "var(--green)" : p.bom === false ? "#fca5a5" : "var(--text-dim)";
+              return (
+                <div key={p.label} className="card">
+                  <div style={{ fontSize: 11, color: "var(--text-faint)" }}>{p.icon} {p.label}</div>
+                  <div style={{ fontSize: 22, fontWeight: 500, color: "#fff", marginTop: 2 }}>
+                    {p.valor}{p.unidade}
+                  </div>
+                  <div style={{ fontSize: 11, color: cor, marginTop: 4 }}>
+                    {p.delta === null
+                      ? "sem dia anterior"
+                      : `${seta} ${p.delta > 0 ? "+" : ""}${p.delta}${p.unidade} (${p.direcao})`}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
     </>
   );
 }

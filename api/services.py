@@ -38,9 +38,49 @@ def build_today(client, db=None) -> dict:
     }
     if db is not None:
         start, end = _period_range(30)
-        analytics = Analytics().summary(db.get_snapshots(start, end))
+        snaps = db.get_snapshots(start, end)
+        analytics = Analytics().summary(snaps)
         payload["daily_insight"] = InsightEngine().daily_insight(context, analytics)
+        payload["parametros"] = _param_deltas(snaps)
     return payload
+
+
+# Parâmetros com variação vs dia anterior. lower_is_better marca o que é bom cair.
+_PARAMS = [
+    ("body_battery_high", "Body Battery", "", "⚡", False),
+    ("stress_avg", "Stress médio", "", "🧠", True),
+    ("calories_total", "Calorias", " kcal", "🔥", False),
+]
+
+
+def _param_deltas(snaps: list) -> list:
+    """Compara os 2 snapshots mais recentes (hoje vs dia anterior)."""
+    out = []
+    for key, label, unidade, icon, lower_is_better in _PARAMS:
+        # pega os 2 dias mais recentes com valor não-nulo desse parâmetro
+        vals = [s for s in snaps if s.get(key) is not None]
+        if not vals:
+            continue
+        cur = vals[-1]
+        prev = vals[-2] if len(vals) >= 2 else None
+        valor = cur[key]
+        delta = round(valor - prev[key], 1) if prev else None
+        if delta is None or delta == 0:
+            direcao = "estável"
+        elif delta > 0:
+            direcao = "subiu"
+        else:
+            direcao = "desceu"
+        # sentido bom/ruim: stress subir é ruim; bateria/calorias é contexto
+        bom = None
+        if delta and lower_is_better:
+            bom = delta < 0
+        out.append({
+            "label": label, "icon": icon, "valor": valor, "unidade": unidade,
+            "delta": delta, "direcao": direcao, "bom": bom,
+            "data": cur["date"], "data_anterior": prev["date"] if prev else None,
+        })
+    return out
 
 
 def build_plan(client, db=None) -> dict:

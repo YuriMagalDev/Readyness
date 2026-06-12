@@ -6,12 +6,25 @@ export interface TodayMetrics {
   run_sessions_7d: number;
 }
 
+export interface Param {
+  label: string;
+  icon: string;
+  valor: number;
+  unidade: string;
+  delta: number | null;
+  direcao: "subiu" | "desceu" | "estável";
+  bom: boolean | null;
+  data: string;
+  data_anterior: string | null;
+}
+
 export interface Today {
   status: "verde" | "amarelo" | "vermelho";
   motivo: string;
   recomendacao: string;
   metrics: TodayMetrics;
   daily_insight?: string;
+  parametros?: Param[];
 }
 
 export interface PlanItem {

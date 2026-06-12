@@ -136,6 +136,28 @@ def test_build_activity_detail_fetches_splits_if_missing():
     client.get_activity_splits.assert_called_once_with(1)
 
 
+def test_param_deltas_computes_direction():
+    snaps = [
+        {"date": "2026-06-10", "body_battery_high": 30, "stress_avg": 45, "calories_total": 3700},
+        {"date": "2026-06-11", "body_battery_high": 39, "stress_avg": 41, "calories_total": 3400},
+    ]
+    out = services._param_deltas(snaps)
+    bat = next(p for p in out if p["label"] == "Body Battery")
+    assert bat["valor"] == 39
+    assert bat["delta"] == 9
+    assert bat["direcao"] == "subiu"
+    stress = next(p for p in out if p["label"] == "Stress médio")
+    assert stress["direcao"] == "desceu"
+    assert stress["bom"] is True  # stress caindo é bom
+
+
+def test_param_deltas_single_day_no_delta():
+    snaps = [{"date": "2026-06-11", "body_battery_high": 39, "stress_avg": 41, "calories_total": 3400}]
+    out = services._param_deltas(snaps)
+    assert out[0]["delta"] is None
+    assert out[0]["direcao"] == "estável"
+
+
 def test_build_plan_saves_to_db():
     client = _fake_client()
     db = _MM()
