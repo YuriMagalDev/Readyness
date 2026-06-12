@@ -65,7 +65,6 @@ Retorne EXATAMENTE este JSON: {{"insight": "..."}}"""
         return self._cached("daily", key, compute, lambda r: r == FALLBACK_DAILY, force=force)
 
     def activity_insight(self, activity: dict, splits: list, force: bool = False) -> str:
-        key = f"activity:{activity.get('activity_id')}"
         def compute():
             prompt = f"""Comente este treino em 1-2 frases: ritmo, FC, consistência dos splits.
 
@@ -77,4 +76,8 @@ Retorne EXATAMENTE este JSON: {{"insight": "..."}}"""
             if not data or not data.get("insight"):
                 return FALLBACK_ACTIVITY
             return data["insight"]
+        aid = activity.get("activity_id")
+        if aid is None:
+            return compute()
+        key = f"activity:{aid}"
         return self._cached("activity", key, compute, lambda r: r == FALLBACK_ACTIVITY, force=force)

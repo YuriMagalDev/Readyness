@@ -34,7 +34,8 @@ export default function Tendencias() {
     try {
       await regenerateInsights("trends", period);
       setData(null);
-      fetchTrends(period).then(setData).catch((e) => setErro(e.message));
+      const fresh = await fetchTrends(period);
+      setData(fresh);
     } catch (e) {
       setErro((e as Error).message);
     } finally {

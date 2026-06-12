@@ -92,6 +92,16 @@ def test_trend_insight_cache_hit(mock_ask):
 
 
 @patch("src.insight_engine.ask_coach", return_value=json.dumps({"insight": "ok"}))
+def test_activity_insight_no_id_skips_cache(mock_ask):
+    db = MagicMock()
+    eng = InsightEngine(db=db)
+    out = eng.activity_insight({"name": "C"}, [])  # no activity_id
+    assert out == "ok"
+    db.get_insight.assert_not_called()
+    db.set_insight.assert_not_called()
+
+
+@patch("src.insight_engine.ask_coach", return_value=json.dumps({"insight": "ok"}))
 def test_activity_insight_cache_by_id(mock_ask):
     db = MagicMock()
     db.get_insight.side_effect = [None, "ok"]
