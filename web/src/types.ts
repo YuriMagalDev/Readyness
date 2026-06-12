@@ -11,9 +11,9 @@ export interface Param {
   icon: string;
   valor: number;
   unidade: string;
-  valor_fmt: string;
+  valor_fmt?: string;
   delta: number | null;
-  delta_fmt: string;
+  delta_fmt?: string;
   direcao: "subiu" | "desceu" | "estável";
   bom: boolean | null;
   data: string;
