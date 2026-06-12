@@ -36,3 +36,28 @@ export async function postSync(): Promise<{ ok: boolean }> {
   }
   return resp.json();
 }
+
+export async function syncGarmin(): Promise<{ ok: boolean }> {
+  const resp = await fetch("/api/sync/garmin", { method: "POST" });
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({ erro: resp.statusText }));
+    throw new Error(body.erro || `Erro ${resp.status}`);
+  }
+  return resp.json();
+}
+
+export async function regenerateInsights(
+  page: "hoje" | "trends",
+  period?: number,
+): Promise<unknown> {
+  const resp = await fetch("/api/sync/insights", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ page, period }),
+  });
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({ erro: resp.statusText }));
+    throw new Error(body.erro || `Erro ${resp.status}`);
+  }
+  return resp.json();
+}

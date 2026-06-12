@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchTrends } from "../api";
+import { fetchTrends, regenerateInsights } from "../api";
 import type { Trends } from "../types";
 import Sparkline from "../components/Sparkline";
 
@@ -20,6 +20,7 @@ export default function Tendencias() {
   const [period, setPeriod] = useState(30);
   const [data, setData] = useState<Trends | null>(null);
   const [erro, setErro] = useState("");
+  const [regen, setRegen] = useState(false);
 
   useEffect(() => {
     setData(null);
@@ -27,10 +28,31 @@ export default function Tendencias() {
     fetchTrends(period).then(setData).catch((e) => setErro(e.message));
   }, [period]);
 
+  async function regenerar() {
+    setRegen(true);
+    setErro("");
+    try {
+      await regenerateInsights("trends", period);
+      setData(null);
+      fetchTrends(period).then(setData).catch((e) => setErro(e.message));
+    } catch (e) {
+      setErro((e as Error).message);
+    } finally {
+      setRegen(false);
+    }
+  }
+
   return (
     <>
-      <div className="page-title">Tendências</div>
-      <div className="page-sub">Padrões de saúde e treino + leitura da IA</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+        <div>
+          <div className="page-title">Tendências</div>
+          <div className="page-sub">Padrões de saúde e treino + leitura da IA</div>
+        </div>
+        <button className="btn-gen" disabled={regen} onClick={regenerar}>
+          {regen ? "Gerando…" : "💡 Regenerar análise"}
+        </button>
+      </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {[7, 30, 90].map((p) => (

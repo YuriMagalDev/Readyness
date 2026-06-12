@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchToday, postSync } from "../api";
+import { fetchToday, postSync, regenerateInsights } from "../api";
 import type { Today } from "../types";
 import Semaforo from "../components/Semaforo";
 import MetricCard from "../components/MetricCard";
@@ -8,12 +8,26 @@ export default function Hoje() {
   const [data, setData] = useState<Today | null>(null);
   const [erro, setErro] = useState("");
   const [syncing, setSyncing] = useState(false);
+  const [regen, setRegen] = useState(false);
 
   function carregar() {
     return fetchToday().then(setData).catch((e) => setErro(e.message));
   }
 
   useEffect(() => { carregar(); }, []);
+
+  async function regenerar() {
+    setRegen(true);
+    setErro("");
+    try {
+      await regenerateInsights("hoje");
+      await carregar();
+    } catch (e) {
+      setErro((e as Error).message);
+    } finally {
+      setRegen(false);
+    }
+  }
 
   async function sincronizar() {
     setSyncing(true);
@@ -40,9 +54,14 @@ export default function Hoje() {
           <div className="page-title">Status do Dia</div>
           <div className="page-sub">Prontidão para treino hoje</div>
         </div>
-        <button className="btn-gen" disabled={syncing} onClick={sincronizar}>
-          {syncing ? "Sincronizando…" : "🔄 Sincronizar"}
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn-gen" disabled={syncing} onClick={sincronizar}>
+            {syncing ? "Sincronizando…" : "🔄 Sincronizar"}
+          </button>
+          <button className="btn-gen" disabled={regen} onClick={regenerar}>
+            {regen ? "Gerando…" : "💡 Regenerar análise"}
+          </button>
+        </div>
       </div>
       {data.daily_insight && (
         <div className="card" style={{ marginBottom: 16, borderLeft: "3px solid var(--green)" }}>
