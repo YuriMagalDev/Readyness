@@ -257,3 +257,31 @@ def test_sync_route():
         resp = TestClient(app).post("/api/sync")
     assert resp.status_code == 200
     assert resp.json()["ok"] is True
+
+
+def test_sync_garmin_route_clears_cache():
+    with patch("api.main.GarminClient") as MockClient, patch("api.main.get_db"):
+        MockClient.return_value.clear_cache.return_value = None
+        from api.main import app
+        resp = TestClient(app).post("/api/sync/garmin")
+    assert resp.status_code == 200
+    assert resp.json()["ok"] is True
+
+
+def test_sync_insights_route_hoje():
+    with patch("api.main.GarminClient"), patch("api.main.get_db"), \
+         patch("api.main.services.build_today", return_value={"status": "verde"}) as mock_bt:
+        from api.main import app
+        resp = TestClient(app).post("/api/sync/insights", json={"page": "hoje"})
+    assert resp.status_code == 200
+    assert mock_bt.call_args[1]["force"] is True
+
+
+def test_sync_insights_route_trends():
+    with patch("api.main.get_db"), \
+         patch("api.main.services.build_trends", return_value={"insights": []}) as mock_bt:
+        from api.main import app
+        resp = TestClient(app).post("/api/sync/insights", json={"page": "trends", "period": 14})
+    assert resp.status_code == 200
+    assert mock_bt.call_args[1]["force"] is True
+    assert mock_bt.call_args[1]["period"] == 14

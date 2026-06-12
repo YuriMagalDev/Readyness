@@ -2,7 +2,7 @@ import json
 import os
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -96,6 +96,26 @@ def sync():
     def _run():
         Ingestor(get_client(), get_db()).sync_today()
         return {"ok": True}
+    return _safe(_run, code=503)
+
+
+@app.post("/api/sync/garmin")
+def sync_garmin():
+    def _run():
+        get_client().clear_cache()
+        return {"ok": True}
+    return _safe(_run, code=503)
+
+
+@app.post("/api/sync/insights")
+def sync_insights(payload: dict = Body(default={})):
+    page = payload.get("page", "hoje")
+    period = int(payload.get("period", 30))
+
+    def _run():
+        if page == "trends":
+            return services.build_trends(get_db(), period=period, force=True)
+        return services.build_today(get_client(), get_db(), force=True)
     return _safe(_run, code=503)
 
 
