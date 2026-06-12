@@ -23,15 +23,16 @@ def ask_coach(prompt: str, context: dict, depth: str = "quick") -> str:
     model = HAIKU if depth == "quick" else SONNET
     profile = _load_athlete_profile()
 
-    system = f"""Você é um coach de saúde e treino pessoal para {profile['nome']}.
-
-PERFIL DO ATLETA:
-{json.dumps(profile, ensure_ascii=False, indent=2)}
-
-CONTEXTO ATUAL:
-{json.dumps(context, ensure_ascii=False, indent=2)}
-
-Responda em português. Seja direto e prático."""
+    profile_block = (
+        f"Você é um coach de saúde e treino pessoal para {profile['nome']}.\n\n"
+        f"PERFIL DO ATLETA:\n{json.dumps(profile, ensure_ascii=False, indent=2)}\n\n"
+        "Responda em português. Seja direto e prático."
+    )
+    context_block = f"CONTEXTO ATUAL:\n{json.dumps(context, ensure_ascii=False, indent=2)}"
+    system = [
+        {"type": "text", "text": profile_block, "cache_control": {"type": "ephemeral"}},
+        {"type": "text", "text": context_block},
+    ]
 
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     message = client.messages.create(
