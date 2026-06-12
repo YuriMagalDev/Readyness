@@ -44,6 +44,12 @@ class HistoryDB:
                 "CREATE TABLE IF NOT EXISTS weekly_plan ("
                 "week_start TEXT PRIMARY KEY, plan_json TEXT NOT NULL, created_at TEXT NOT NULL)"
             )
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS ai_insights ("
+                "kind TEXT NOT NULL, cache_key TEXT NOT NULL, "
+                "payload TEXT NOT NULL, created_at TEXT NOT NULL, "
+                "PRIMARY KEY (kind, cache_key))"
+            )
 
     def _upsert(self, table: str, columns: list, row: dict):
         cols = [c for c in columns if c in row]
@@ -106,6 +112,32 @@ class HistoryDB:
         if row is None:
             return None
         return {"plan": _json.loads(row["plan_json"]), "created_at": row["created_at"]}
+
+    def get_insight(self, kind: str, cache_key: str):
+        import json as _json
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT payload FROM ai_insights WHERE kind = ? AND cache_key = ?",
+                (kind, cache_key),
+            ).fetchone()
+        return _json.loads(row["payload"]) if row else None
+
+    def set_insight(self, kind: str, cache_key: str, payload, created_at: str) -> None:
+        import json as _json
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT INTO ai_insights (kind, cache_key, payload, created_at) "
+                "VALUES (?, ?, ?, ?) ON CONFLICT(kind, cache_key) DO UPDATE SET "
+                "payload=excluded.payload, created_at=excluded.created_at",
+                (kind, cache_key, _json.dumps(payload), created_at),
+            )
+
+    def delete_insight(self, kind: str, cache_key: str) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                "DELETE FROM ai_insights WHERE kind = ? AND cache_key = ?",
+                (kind, cache_key),
+            )
 
     def latest_snapshot_date(self):
         with self._connect() as conn:

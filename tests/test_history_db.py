@@ -65,3 +65,34 @@ def test_latest_snapshot_date(db):
     db.upsert_snapshot({"date": "2026-06-05", "resting_hr": 50})
     db.upsert_snapshot({"date": "2026-06-10", "resting_hr": 52})
     assert db.latest_snapshot_date() == "2026-06-10"
+
+
+def test_ai_insight_set_get_roundtrip(tmp_path):
+    from src.history_db import HistoryDB
+    db = HistoryDB(db_path=str(tmp_path / "h.db"))
+    assert db.get_insight("daily", "daily:2026-06-12") is None
+    db.set_insight("daily", "daily:2026-06-12", "treine leve", "2026-06-12")
+    assert db.get_insight("daily", "daily:2026-06-12") == "treine leve"
+
+
+def test_ai_insight_stores_list_payload(tmp_path):
+    from src.history_db import HistoryDB
+    db = HistoryDB(db_path=str(tmp_path / "h.db"))
+    db.set_insight("trend", "trend:30:2026-06-12", ["a", "b"], "2026-06-12")
+    assert db.get_insight("trend", "trend:30:2026-06-12") == ["a", "b"]
+
+
+def test_ai_insight_set_overwrites(tmp_path):
+    from src.history_db import HistoryDB
+    db = HistoryDB(db_path=str(tmp_path / "h.db"))
+    db.set_insight("daily", "k", "v1", "2026-06-12")
+    db.set_insight("daily", "k", "v2", "2026-06-12")
+    assert db.get_insight("daily", "k") == "v2"
+
+
+def test_ai_insight_delete(tmp_path):
+    from src.history_db import HistoryDB
+    db = HistoryDB(db_path=str(tmp_path / "h.db"))
+    db.set_insight("daily", "k", "v", "2026-06-12")
+    db.delete_insight("daily", "k")
+    assert db.get_insight("daily", "k") is None
