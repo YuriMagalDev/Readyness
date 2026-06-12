@@ -37,3 +37,7 @@ class Cache:
                 "INSERT OR REPLACE INTO cache (key, value, expires_at) VALUES (?, ?, ?)",
                 (key, json.dumps(data), expires_at),
             )
+
+    def clear(self) -> None:
+        with sqlite3.connect(self._db_path) as conn:
+            conn.execute("DELETE FROM cache")

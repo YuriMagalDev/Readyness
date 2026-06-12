@@ -23,3 +23,11 @@ def test_overwrite(cache):
     cache.set("key3", {"value": 1})
     cache.set("key3", {"value": 2})
     assert cache.get("key3") == {"value": 2}
+
+def test_clear_empties_cache(tmp_path):
+    from src.cache import Cache
+    c = Cache(db_path=str(tmp_path / "c.db"), ttl_hours=6)
+    c.set("k", {"v": 1})
+    assert c.get("k") == {"v": 1}
+    c.clear()
+    assert c.get("k") is None

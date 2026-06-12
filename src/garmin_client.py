@@ -114,3 +114,6 @@ class GarminClient:
             f"acts_{start}_{end}",
             lambda: self._client.get_activities_by_date(start, end),
         )
+
+    def clear_cache(self) -> None:
+        self._cache.clear()
