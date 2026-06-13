@@ -25,3 +25,33 @@ def test_read_metrics_groups_and_status():
     corpo = {m["key"]: m for m in dominios["corpo"]}
     assert corpo["weight_kg"]["value"] == 80.0
     assert corpo["weight_kg"]["status"] == "fresco"
+
+
+from src.metric_reader import context_from_metrics
+
+
+def test_context_from_metrics_computes_hr_avg_and_debt():
+    db = MagicMock()
+
+    def series(metric_key, start, end):
+        if metric_key == "resting_hr":
+            return [{"value": 50, "measured_at": f"2026-06-{6+i:02d}T00:00", "date": f"2026-06-{6+i:02d}"}
+                    for i in range(7)]
+        if metric_key == "sleep_hours":
+            return [{"value": 6.0, "measured_at": f"2026-06-{6+i:02d}T00:00", "date": f"2026-06-{6+i:02d}"}
+                    for i in range(7)]
+        if metric_key == "body_battery_high":
+            return [{"value": 80, "measured_at": "2026-06-13T00:00", "date": "2026-06-13"}]
+        return []
+
+    db.get_metric_series.side_effect = series
+    db.get_activities.return_value = [
+        {"date": "2026-06-12", "type": "running", "is_strength": 0},
+        {"date": "2026-06-11", "type": "strength_training", "is_strength": 1},
+    ]
+    ctx = context_from_metrics(db, "2026-06-13", today=datetime.date(2026, 6, 13))
+    assert ctx["resting_hr_today"] == 50
+    assert ctx["resting_hr_avg_7d"] == 50.0
+    assert ctx["sleep_debt_hours"] == 7.0
+    assert ctx["morning_battery_avg"] == 80
+    assert ctx["run_sessions_7d"] == 1

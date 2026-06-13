@@ -31,3 +31,36 @@ def _latest_on_or_before(db, metric_key: str, date: str):
     start = (_dt.date.fromisoformat(date) - _dt.timedelta(days=60)).isoformat()
     series = db.get_metric_series(metric_key, start, date)
     return series[-1] if series else None
+
+
+SLEEP_TARGET_HOURS = 7.0
+RUN_TYPES = {"running", "trail_running", "treadmill_running"}
+
+
+def context_from_metrics(db, date: str, today: _dt.date = None) -> dict:
+    today = today or _dt.date.today()
+    week_start = (_dt.date.fromisoformat(date) - _dt.timedelta(days=6)).isoformat()
+
+    hr_series = db.get_metric_series("resting_hr", week_start, date)
+    hr_vals = [r["value"] for r in hr_series if r["value"] is not None]
+    hr_avg = round(sum(hr_vals) / len(hr_vals), 1) if hr_vals else 0.0
+    hr_today = hr_vals[-1] if hr_vals else hr_avg
+
+    sleep_series = db.get_metric_series("sleep_hours", week_start, date)
+    debt = sum(max(SLEEP_TARGET_HOURS - r["value"], 0)
+               for r in sleep_series if r["value"] is not None)
+
+    bat_series = db.get_metric_series("body_battery_high", week_start, date)
+    bat_vals = [r["value"] for r in bat_series if r["value"] is not None]
+    battery = bat_vals[-1] if bat_vals else 100
+
+    acts = db.get_activities(week_start, date)
+    runs = sum(1 for a in acts if not a.get("is_strength") and a.get("type") in RUN_TYPES)
+
+    return {
+        "resting_hr_today": hr_today,
+        "resting_hr_avg_7d": hr_avg,
+        "sleep_debt_hours": round(debt, 1),
+        "morning_battery_avg": battery,
+        "run_sessions_7d": runs,
+    }
