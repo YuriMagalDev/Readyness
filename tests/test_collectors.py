@@ -1,5 +1,6 @@
 from src.collectors.recuperacao import normalize_recuperacao
 from src.collectors.atividade import normalize_atividade
+from src.collectors.prontidao import normalize_prontidao
 
 DAY = "2026-06-13"
 
@@ -59,3 +60,27 @@ def test_atividade_intensity_none_when_both_absent():
     keys = {r["metric_key"] for r in rows}
     assert "intensity_minutes" not in keys
     assert "steps" in keys
+
+
+def test_prontidao_extracts_metrics():
+    rows = normalize_prontidao(
+        DAY,
+        readiness={"score": 72},
+        max_metrics=[{"generic": {"vo2MaxValue": 48.0}}],
+        endurance={"overallScore": 5600},
+        race={"time5K": 1758, "time10K": 3700,
+              "timeHalfMarathon": 8200, "timeMarathon": 17000},
+    )
+    by_key = {r["metric_key"]: r for r in rows}
+    assert by_key["training_readiness"]["value"] == 72
+    assert by_key["vo2max"]["value"] == 48.0
+    assert by_key["endurance_score"]["value"] == 5600
+    assert by_key["race_pred_5k"]["value"] == 1758
+    assert by_key["race_pred_5k"]["source"] == "estimado"
+    assert by_key["vo2max"]["source"] == "garmin"
+
+
+def test_prontidao_skips_missing():
+    rows = normalize_prontidao(DAY, readiness=None, max_metrics=None,
+                               endurance=None, race=None)
+    assert rows == []
