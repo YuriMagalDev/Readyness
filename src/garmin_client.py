@@ -115,5 +115,35 @@ class GarminClient:
             lambda: self._client.get_activities_by_date(start, end),
         )
 
+    def get_training_readiness(self, day: str) -> dict:
+        return self._cached(
+            f"readiness_{day}",
+            lambda: self._client.get_morning_training_readiness(day),
+        )
+
+    def get_max_metrics(self, day: str) -> dict:
+        return self._cached(
+            f"maxmetrics_{day}",
+            lambda: self._client.get_max_metrics(day),
+        )
+
+    def get_endurance_score(self, day: str) -> dict:
+        return self._cached(
+            f"endurance_{day}",
+            lambda: self._client.get_endurance_score(day),
+        )
+
+    def get_hrv(self, day: str) -> dict:
+        return self._cached(
+            f"hrv_{day}",
+            lambda: self._client.get_hrv_data(day),
+        )
+
+    def get_body_composition(self, start: str, end: str) -> dict:
+        return self._cached(
+            f"bodycomp_{start}_{end}",
+            lambda: self._client.get_body_composition(start, end),
+        )
+
     def clear_cache(self) -> None:
         self._cache.clear()
