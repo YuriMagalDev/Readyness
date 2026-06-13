@@ -264,6 +264,22 @@ def build_metrics(db, date: str, today: _dt.date = None) -> dict:
     return {"date": date, "dominios": dominios}
 
 
+_CHECKIN_KEYS = {"hidratacao", "energia", "soreness", "alimentacao"}
+
+
+def save_checkin(db, payload: dict, today: _dt.date = None) -> dict:
+    today = today or _dt.date.today()
+    now = _dt.datetime.now().isoformat(timespec="minutes")
+    day = today.isoformat()
+    for key, val in payload.items():
+        if key not in _CHECKIN_KEYS:
+            continue
+        if not isinstance(val, int) or not (1 <= val <= 5):
+            raise ValueError(f"{key} deve ser inteiro 1-5")
+        db.upsert_metric(day, key, val, now, "manual")
+    return {"ok": True}
+
+
 def _latest_on_or_before(db, metric_key: str, date: str):
     start = (_dt.date.fromisoformat(date) - _dt.timedelta(days=60)).isoformat()
     series = db.get_metric_series(metric_key, start, date)

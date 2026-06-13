@@ -119,6 +119,25 @@ def sync_insights(payload: dict = Body(default={})):
     return _safe(_run, code=503)
 
 
+@app.get("/api/metrics")
+def metrics(date: str = None):
+    import datetime as _d
+    d = date or _d.date.today().isoformat()
+    return _safe(lambda: services.build_metrics(get_db(), d), code=503)
+
+
+@app.post("/api/checkin")
+def checkin(payload: dict = Body(default={})):
+    def _run():
+        return services.save_checkin(get_db(), payload)
+    try:
+        return _run()
+    except ValueError as e:
+        return JSONResponse(status_code=422, content={"erro": str(e)})
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse(status_code=503, content={"erro": str(e)})
+
+
 # Serve build React em prod, se existir (montado por último pra não capturar /api).
 _dist = Path("web/dist")
 if _dist.exists():

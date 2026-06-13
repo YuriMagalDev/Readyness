@@ -354,3 +354,46 @@ def test_sync_insights_route_trends():
     assert resp.status_code == 200
     assert mock_bt.call_args[1]["force"] is True
     assert mock_bt.call_args[1]["period"] == 14
+
+
+def test_save_checkin_writes_manual_rows():
+    db = _MM()
+    services.save_checkin(db, {"hidratacao": 3, "energia": 4}, today=_dt2.date(2026, 6, 13))
+    keys = [c.args[1] for c in db.upsert_metric.call_args_list]
+    assert "hidratacao" in keys and "energia" in keys
+    assert all(c.args[4] == "manual" for c in db.upsert_metric.call_args_list)
+
+
+def test_save_checkin_rejects_out_of_range():
+    db = _MM()
+    import pytest
+    with pytest.raises(ValueError):
+        services.save_checkin(db, {"hidratacao": 9}, today=_dt2.date(2026, 6, 13))
+
+
+def test_metrics_route():
+    with patch("api.main.get_db"), \
+         patch("api.main.services.build_metrics", return_value={"date": "2026-06-13", "dominios": {}}):
+        from api.main import app
+        resp = TestClient(app).get("/api/metrics?date=2026-06-13")
+    assert resp.status_code == 200
+    assert resp.json()["date"] == "2026-06-13"
+
+
+def test_checkin_route():
+    with patch("api.main.get_db"), \
+         patch("api.main.services.save_checkin", return_value={"ok": True}) as mock_save:
+        from api.main import app
+        resp = TestClient(app).post("/api/checkin", json={"hidratacao": 3})
+    assert resp.status_code == 200
+    assert resp.json()["ok"] is True
+    assert mock_save.called
+
+
+def test_checkin_route_invalid_returns_422():
+    with patch("api.main.get_db"), \
+         patch("api.main.services.save_checkin", side_effect=ValueError("1-5")):
+        from api.main import app
+        resp = TestClient(app).post("/api/checkin", json={"hidratacao": 9})
+    assert resp.status_code == 422
+    assert "erro" in resp.json()
