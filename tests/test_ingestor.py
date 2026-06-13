@@ -21,6 +21,12 @@ def _client():
         "activityType": {"typeKey": "running"}, "distance": 5000, "duration": 1500,
         "averageSpeed": 3.333, "averageHR": 150,
     }]
+    c.get_sleep.return_value = [{"dailySleepDTO": {"sleepTimeSeconds": 25200, "deepSleepSeconds": 5400, "lightSleepSeconds": 14400, "remSleepSeconds": 5400}}]
+    c.get_hrv.return_value = None
+    c.get_training_readiness.return_value = None
+    c.get_max_metrics.return_value = None
+    c.get_endurance_score.return_value = None
+    c.get_body_composition.return_value = None
     return c
 
 
@@ -85,3 +91,31 @@ def test_sync_today_writes_one(tmp_path):
     assert len(rows) == 1
     acts = db.get_activities("2026-06-01", "2026-06-30")
     assert len(acts) == 1
+
+
+def _client_full():
+    c = _client()  # reusa o mock base do arquivo
+    c.get_training_readiness.return_value = {"score": 70}
+    c.get_max_metrics.return_value = [{"generic": {"vo2MaxValue": 48.0}}]
+    c.get_endurance_score.return_value = {"overallScore": 5600}
+    c.get_hrv.return_value = None
+    c.get_body_composition.return_value = {"dateWeightList": [
+        {"weight": 80000, "bodyFat": 18.0, "muscleMass": 60000, "date": "2026-06-10"}]}
+    return c
+
+
+def test_sync_today_writes_metric_value_and_snapshot(tmp_path):
+    from src.history_db import HistoryDB
+    db = HistoryDB(db_path=str(tmp_path / "h.db"))
+    ing = Ingestor(_client_full(), db, sleep_seconds=0)
+    ing.sync_today(today=datetime.date(2026, 6, 10))
+
+    snaps = db.get_snapshots("2026-06-01", "2026-06-30")
+    assert len(snaps) == 1  # dual-write: snapshot legado preenchido
+
+    metrics = {m["metric_key"]: m for m in db.get_metrics("2026-06-10")}
+    assert metrics["resting_hr"]["value"] == 52
+    assert metrics["steps"]["value"] == 8000
+    assert metrics["vo2max"]["value"] == 48.0
+    assert metrics["race_pred_5k"]["source"] == "estimado"
+    assert metrics["weight_kg"]["value"] == 80.0

@@ -1,7 +1,12 @@
 import datetime
 import time
+import datetime as _dt
 
 from src.extractors import snapshot_from_garmin, activity_from_garmin
+from src.collectors.recuperacao import normalize_recuperacao
+from src.collectors.atividade import normalize_atividade
+from src.collectors.prontidao import normalize_prontidao
+from src.collectors.corpo import normalize_corpo
 
 RATE_LIMIT_MARKER = "rate limit"
 MAX_RETRIES = 3
@@ -39,11 +44,45 @@ class Ingestor:
                    and a["type"] in {"running", "trail_running", "treadmill_running"})
         strength = sum(1 for a in acts_for_day if a["is_strength"])
         train_minutes = sum(a["duration_min"] or 0 for a in acts_for_day)
+
+        # dual-write: snapshot legado (Hoje/Tendências atuais dependem dele)
         snap = snapshot_from_garmin(day, summary, race,
                                     runs=runs, strength=strength, train_minutes=train_minutes)
         self._db.upsert_snapshot(snap)
         for a in acts_for_day:
             self._db.upsert_activity(a)
+
+        # metric_value via coletores
+        self._write_metrics(day, summary, race)
+
+    def _write_metrics(self, day: str, summary, race):
+        sleep = self._safe_call(lambda: self._client.get_sleep(1))
+        sleep_one = sleep[0] if isinstance(sleep, list) and sleep else (sleep or {})
+        readiness = self._safe_call(lambda: self._client.get_training_readiness(day))
+        max_metrics = self._safe_call(lambda: self._client.get_max_metrics(day))
+        endurance = self._safe_call(lambda: self._client.get_endurance_score(day))
+        hrv = self._safe_call(lambda: self._client.get_hrv(day))
+        start = (_dt.date.fromisoformat(day) - _dt.timedelta(days=7)).isoformat()
+        body = self._safe_call(lambda: self._client.get_body_composition(start, day))
+
+        rows = []
+        rows += normalize_recuperacao(day, summary=summary, sleep=sleep_one,
+                                      hrv=hrv, respiration=None)
+        rows += normalize_atividade(day, summary)
+        rows += normalize_prontidao(day, readiness=readiness, max_metrics=max_metrics,
+                                    endurance=endurance, race=race)
+        rows += normalize_corpo(day, body)
+        for r in rows:
+            self._db.upsert_metric(day, r["metric_key"], r["value"],
+                                   r["measured_at"], r["source"])
+
+    @staticmethod
+    def _safe_call(fn):
+        """Endpoint novo/instável: falha vira None (métrica fica ausente)."""
+        try:
+            return fn()
+        except Exception:  # noqa: BLE001
+            return None
 
     def backfill(self, days: int = 90, today: datetime.date = None):
         today = today or datetime.date.today()
