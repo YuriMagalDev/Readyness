@@ -318,6 +318,34 @@ def test_sync_insights_route_hoje():
     assert mock_bt.call_args[1]["force"] is True
 
 
+import datetime as _dt2
+
+
+def test_build_metrics_groups_and_status():
+    db = _MM()
+    db.get_metrics.return_value = [
+        {"date": "2026-06-13", "metric_key": "resting_hr", "value": 52,
+         "measured_at": "2026-06-13T00:00", "source": "garmin"},
+        {"date": "2026-06-13", "metric_key": "race_pred_5k", "value": 1758,
+         "measured_at": "2026-06-13T00:00", "source": "estimado"},
+    ]
+    db.get_metric_series.return_value = [
+        {"date": "2026-06-10", "metric_key": "weight_kg", "value": 80.0,
+         "measured_at": "2026-06-10T07:00", "source": "garmin"}]
+    payload = services.build_metrics(db, "2026-06-13", today=_dt2.date(2026, 6, 13))
+
+    dominios = payload["dominios"]
+    rec = {m["key"]: m for m in dominios["recuperacao"]}
+    assert rec["resting_hr"]["status"] == "fresco"
+    assert rec["hrv_overnight"]["status"] == "ausente"
+    pront = {m["key"]: m for m in dominios["prontidao"]}
+    assert pront["race_pred_5k"]["status"] == "estimado"
+    corpo = {m["key"]: m for m in dominios["corpo"]}
+    assert corpo["weight_kg"]["value"] == 80.0
+    assert corpo["weight_kg"]["status"] == "fresco"
+    assert corpo["weight_kg"]["measured_at"] == "2026-06-10T07:00"
+
+
 def test_sync_insights_route_trends():
     with patch("api.main.get_db"), \
          patch("api.main.services.build_trends", return_value={"insights": []}) as mock_bt:
