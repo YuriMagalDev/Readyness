@@ -66,6 +66,21 @@ def activity_from_garmin(act: dict) -> dict:
     }
 
 
+def sets_from_garmin(raw: dict) -> list:
+    sets = (raw or {}).get("exerciseSets", []) or []
+    out = []
+    for s in sets:
+        if s.get("setType") != "ACTIVE":
+            continue
+        weight = s.get("weight")
+        out.append({
+            "reps": s.get("repetitionCount"),
+            "weight_kg": round(weight / 1000, 1) if weight else None,
+            "duration_s": s.get("duration"),
+        })
+    return out
+
+
 def splits_from_garmin(raw: dict) -> list:
     laps = (raw or {}).get("lapDTOs", []) or []
     out = []

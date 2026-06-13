@@ -72,3 +72,22 @@ def test_splits_json_shape():
     assert splits[0]["distance_m"] == 1000
     assert round(splits[0]["pace_min_km"], 2) == 5.0
     assert splits[0]["avg_hr"] == 150
+
+
+from src.extractors import sets_from_garmin
+
+
+def test_sets_from_garmin_extracts_reps_weight():
+    raw = {"exerciseSets": [
+        {"setType": "ACTIVE", "repetitionCount": 10, "weight": 20000, "duration": 40},
+        {"setType": "REST", "repetitionCount": None, "weight": None, "duration": 60},
+    ]}
+    sets = sets_from_garmin(raw)
+    assert len(sets) == 1  # só ACTIVE
+    assert sets[0]["reps"] == 10
+    assert sets[0]["weight_kg"] == 20.0
+
+
+def test_sets_from_garmin_empty():
+    assert sets_from_garmin({}) == []
+    assert sets_from_garmin(None) == []

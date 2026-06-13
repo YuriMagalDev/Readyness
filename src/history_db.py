@@ -12,7 +12,7 @@ SNAPSHOT_COLUMNS = [
 ACTIVITY_COLUMNS = [
     "activity_id", "date", "name", "type", "is_strength",
     "distance_m", "duration_min", "pace_min_km", "avg_hr", "max_hr",
-    "calories", "cadence", "stride_length", "splits_json",
+    "calories", "cadence", "stride_length", "splits_json", "sets_json",
 ]
 
 
@@ -33,7 +33,7 @@ class HistoryDB:
         )
         act_cols = ", ".join(
             f"{c} INTEGER PRIMARY KEY" if c == "activity_id"
-            else f"{c} TEXT" if c in ("date", "name", "type", "splits_json")
+            else f"{c} TEXT" if c in ("date", "name", "type", "splits_json", "sets_json")
             else f"{c} REAL"
             for c in ACTIVITY_COLUMNS
         )

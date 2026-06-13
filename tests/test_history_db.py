@@ -124,3 +124,13 @@ def test_metric_series_range(tmp_path):
     db.upsert_metric("2026-06-13", "vo2max", 48.0, "2026-06-13T06:40", "garmin")
     series = db.get_metric_series("weight_kg", "2026-06-01", "2026-06-30")
     assert [r["value"] for r in series] == [81.0, 80.0]
+
+
+def test_activity_stores_sets_json(tmp_path):
+    from src.history_db import HistoryDB
+    db = HistoryDB(db_path=str(tmp_path / "h.db"))
+    db.upsert_activity({"activity_id": 9, "date": "2026-06-13", "name": "Força",
+                        "type": "strength_training", "is_strength": 1,
+                        "sets_json": '[{"reps":10,"weight_kg":20.0}]'})
+    act = db.get_activity(9)
+    assert act["sets_json"] == '[{"reps":10,"weight_kg":20.0}]'

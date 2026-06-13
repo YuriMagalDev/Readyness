@@ -35,6 +35,13 @@ class Ingestor:
         grouped = {}
         for a in acts:
             row = activity_from_garmin(a)
+            if row["is_strength"] and row.get("activity_id"):
+                raw_sets = self._safe_call(
+                    lambda aid=row["activity_id"]: self._client.get_activity_exercise_sets(aid))
+                if raw_sets:
+                    import json as _json
+                    from src.extractors import sets_from_garmin
+                    row["sets_json"] = _json.dumps(sets_from_garmin(raw_sets))
             grouped.setdefault(row["date"], []).append(row)
         return grouped
 
