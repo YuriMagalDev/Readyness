@@ -138,6 +138,20 @@ def checkin(payload: dict = Body(default={})):
         return JSONResponse(status_code=503, content={"erro": str(e)})
 
 
+@app.get("/api/analysis")
+def analysis(date: str = None):
+    import datetime as _d
+    d = date or _d.date.today().isoformat()
+    return _safe(lambda: services.build_analysis(get_db(), d), code=503)
+
+
+@app.post("/api/analysis")
+def analysis_force(payload: dict = Body(default={})):
+    import datetime as _d
+    d = payload.get("date") or _d.date.today().isoformat()
+    return _safe(lambda: services.build_analysis(get_db(), d, force=True), code=503)
+
+
 # Serve build React em prod, se existir (montado por último pra não capturar /api).
 _dist = Path("web/dist")
 if _dist.exists():

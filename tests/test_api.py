@@ -397,3 +397,32 @@ def test_checkin_route_invalid_returns_422():
         resp = TestClient(app).post("/api/checkin", json={"hidratacao": 9})
     assert resp.status_code == 422
     assert "erro" in resp.json()
+
+
+def test_build_analysis_delegates():
+    db = _MM()
+    with patch("api.services.DailyAnalysis") as MockDA:
+        MockDA.return_value.build.return_value = {"date": "2026-06-13", "veredito": {}, "insights": []}
+        out = services.build_analysis(db, "2026-06-13", force=True)
+    assert out["date"] == "2026-06-13"
+    assert MockDA.return_value.build.call_args[1]["force"] is True
+
+
+def test_analysis_route():
+    with patch("api.main.get_db"), \
+         patch("api.main.services.build_analysis",
+               return_value={"date": "2026-06-13", "veredito": {}, "insights": []}):
+        from api.main import app
+        resp = TestClient(app).get("/api/analysis?date=2026-06-13")
+    assert resp.status_code == 200
+    assert resp.json()["date"] == "2026-06-13"
+
+
+def test_analysis_route_post_forces():
+    with patch("api.main.get_db"), \
+         patch("api.main.services.build_analysis",
+               return_value={"date": "2026-06-13", "veredito": {}, "insights": []}) as mock_ba:
+        from api.main import app
+        resp = TestClient(app).post("/api/analysis", json={"date": "2026-06-13"})
+    assert resp.status_code == 200
+    assert mock_ba.call_args[1]["force"] is True

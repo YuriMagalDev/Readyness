@@ -4,6 +4,7 @@ import datetime as _dt
 from datetime import date, timedelta
 
 from src.metric_reader import read_metrics
+from src.daily_analysis import DailyAnalysis
 from src.data_processor import DataProcessor
 from src.health_monitor import HealthMonitor
 from src.training_planner import TrainingPlanner
@@ -243,6 +244,10 @@ def build_metrics(db, date: str, today: _dt.date = None) -> dict:
 
 
 _CHECKIN_KEYS = {"hidratacao", "energia", "soreness", "alimentacao"}
+
+
+def build_analysis(db, date: str, force: bool = False) -> dict:
+    return DailyAnalysis(db=db).build(date, force=force)
 
 
 def save_checkin(db, payload: dict, today: _dt.date = None) -> dict:
