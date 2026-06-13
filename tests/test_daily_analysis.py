@@ -63,3 +63,21 @@ def test_insights_cache_hit_no_second_call(mock_ask):
     eng._insights(METRICS)
     assert mock_ask.call_count == 1
     db.set_insight.assert_called_once()
+
+
+import datetime as _dt3
+
+
+@patch("src.daily_analysis.ask_coach", return_value=json.dumps({"insights": []}))
+def test_build_combines_verdict_and_insights(mock_ask):
+    db = MagicMock()
+    with patch("src.daily_analysis.read_metrics", return_value=METRICS), \
+         patch("src.daily_analysis.context_from_metrics", return_value={}), \
+         patch("src.daily_analysis.HealthMonitor") as MockMon:
+        MockMon.return_value.verdict.return_value = {
+            "status": "amarelo", "motivo": "x", "recomendacao": "y"}
+        eng = DailyAnalysis(db=db)
+        out = eng.build("2026-06-13", today=_dt3.date(2026, 6, 13), force=True)
+    assert out["date"] == "2026-06-13"
+    assert out["veredito"]["status"] == "amarelo"
+    assert out["insights"] == []

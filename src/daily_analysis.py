@@ -1,7 +1,10 @@
 import json
+import datetime as _dt
 from datetime import date
 from src.ai_coach import ask_coach
 from src.insight_engine import _parse_json
+from src.metric_reader import read_metrics, context_from_metrics
+from src.health_monitor import HealthMonitor
 
 
 class DailyAnalysis:
@@ -55,3 +58,11 @@ Retorne EXATAMENTE este JSON:
         if self.db is not None and result:
             self.db.set_insight("daily_v2", key, result, date.today().isoformat())
         return result
+
+    def build(self, date_str: str, today: _dt.date = None, force: bool = False) -> dict:
+        today = today or _dt.date.today()
+        metrics = read_metrics(self.db, date_str, today=today)
+        context = context_from_metrics(self.db, date_str, today=today)
+        veredito = HealthMonitor().verdict(context)
+        insights = self._insights(metrics, force=force)
+        return {"date": date_str, "veredito": veredito, "insights": insights}
