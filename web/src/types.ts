@@ -130,3 +130,39 @@ export interface ActivityDetail {
   splits: Split[];
   insight: string;
 }
+
+export type MetricStatus = "fresco" | "velho" | "ausente" | "estimado";
+
+export interface MetricCell {
+  key: string;
+  label: string;
+  value: number | null;
+  unidade: string;
+  measured_at: string | null;
+  status: MetricStatus;
+  source: string;
+}
+
+export interface MetricsPayload {
+  date: string;
+  dominios: Record<string, MetricCell[]>;
+}
+
+export interface InsightSource {
+  key: string;
+  label: string;
+  valor: number | null;
+  unidade: string;
+  status: MetricStatus;
+}
+
+export interface Insight {
+  texto: string;
+  metricas_usadas: InsightSource[];
+}
+
+export interface Analysis {
+  date: string;
+  veredito: { semaforo: "verde" | "amarelo" | "vermelho"; motivo: string; recomendacao: string };
+  insights: Insight[];
+}
