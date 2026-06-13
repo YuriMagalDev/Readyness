@@ -36,6 +36,10 @@ class HealthMonitor:
             "recomendacao": "Pode treinar conforme planejado.",
         }
 
+    def verdict(self, context: dict) -> dict:
+        """Veredito determinístico (só regras, sem LLM)."""
+        return self._evaluate_rules(context)
+
     def check(self, context: dict) -> dict:
         rule_result = self._evaluate_rules(context)
 

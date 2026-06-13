@@ -45,3 +45,19 @@ def test_check_calls_haiku(mock_ask):
     call_kwargs = mock_ask.call_args
     assert call_kwargs[1].get("depth") == "quick" or call_kwargs[0][2] == "quick"
     assert result["status"] in ("verde", "amarelo", "vermelho")
+
+
+def test_verdict_is_deterministic_no_llm():
+    from src.health_monitor import HealthMonitor
+    ctx = {"resting_hr_today": 60, "resting_hr_avg_7d": 50,
+           "morning_battery_avg": 80, "sleep_debt_hours": 0}
+    out = HealthMonitor().verdict(ctx)
+    assert out["status"] == "vermelho"
+    assert "FC repouso" in out["motivo"]
+
+
+def test_verdict_green_when_normal():
+    from src.health_monitor import HealthMonitor
+    ctx = {"resting_hr_today": 50, "resting_hr_avg_7d": 50,
+           "morning_battery_avg": 80, "sleep_debt_hours": 0}
+    assert HealthMonitor().verdict(ctx)["status"] == "verde"
