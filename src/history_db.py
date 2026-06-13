@@ -50,6 +50,12 @@ class HistoryDB:
                 "payload TEXT NOT NULL, created_at TEXT NOT NULL, "
                 "PRIMARY KEY (kind, cache_key))"
             )
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS metric_value ("
+                "date TEXT NOT NULL, metric_key TEXT NOT NULL, value REAL, "
+                "measured_at TEXT, source TEXT NOT NULL, "
+                "PRIMARY KEY (date, metric_key))"
+            )
 
     def _upsert(self, table: str, columns: list, row: dict):
         cols = [c for c in columns if c in row]
@@ -131,6 +137,32 @@ class HistoryDB:
                 "payload=excluded.payload, created_at=excluded.created_at",
                 (kind, cache_key, _json.dumps(payload), created_at),
             )
+
+    def upsert_metric(self, date: str, metric_key: str, value, measured_at, source: str) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT INTO metric_value (date, metric_key, value, measured_at, source) "
+                "VALUES (?, ?, ?, ?, ?) ON CONFLICT(date, metric_key) DO UPDATE SET "
+                "value=excluded.value, measured_at=excluded.measured_at, source=excluded.source",
+                (date, metric_key, value, measured_at, source),
+            )
+
+    def get_metrics(self, date: str) -> list:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT date, metric_key, value, measured_at, source FROM metric_value "
+                "WHERE date = ? ORDER BY metric_key", (date,)
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_metric_series(self, metric_key: str, start: str, end: str) -> list:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT date, metric_key, value, measured_at, source FROM metric_value "
+                "WHERE metric_key = ? AND date >= ? AND date <= ? ORDER BY date ASC",
+                (metric_key, start, end)
+            ).fetchall()
+        return [dict(r) for r in rows]
 
     def delete_insight(self, kind: str, cache_key: str) -> None:
         with self._connect() as conn:

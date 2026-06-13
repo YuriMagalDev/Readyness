@@ -96,3 +96,31 @@ def test_ai_insight_delete(tmp_path):
     db.set_insight("daily", "k", "v", "2026-06-12")
     db.delete_insight("daily", "k")
     assert db.get_insight("daily", "k") is None
+
+
+def test_metric_value_upsert_and_get(tmp_path):
+    from src.history_db import HistoryDB
+    db = HistoryDB(db_path=str(tmp_path / "h.db"))
+    db.upsert_metric("2026-06-13", "vo2max", 48.0, "2026-06-13T06:40", "garmin")
+    rows = db.get_metrics("2026-06-13")
+    assert rows == [{"date": "2026-06-13", "metric_key": "vo2max", "value": 48.0,
+                     "measured_at": "2026-06-13T06:40", "source": "garmin"}]
+
+
+def test_metric_value_upsert_overwrites(tmp_path):
+    from src.history_db import HistoryDB
+    db = HistoryDB(db_path=str(tmp_path / "h.db"))
+    db.upsert_metric("2026-06-13", "weight_kg", 80.0, "2026-06-13T07:00", "garmin")
+    db.upsert_metric("2026-06-13", "weight_kg", 79.5, "2026-06-13T07:05", "garmin")
+    rows = db.get_metrics("2026-06-13")
+    assert len(rows) == 1 and rows[0]["value"] == 79.5
+
+
+def test_metric_series_range(tmp_path):
+    from src.history_db import HistoryDB
+    db = HistoryDB(db_path=str(tmp_path / "h.db"))
+    db.upsert_metric("2026-06-10", "weight_kg", 81.0, "2026-06-10T07:00", "garmin")
+    db.upsert_metric("2026-06-13", "weight_kg", 80.0, "2026-06-13T07:00", "garmin")
+    db.upsert_metric("2026-06-13", "vo2max", 48.0, "2026-06-13T06:40", "garmin")
+    series = db.get_metric_series("weight_kg", "2026-06-01", "2026-06-30")
+    assert [r["value"] for r in series] == [81.0, 80.0]
