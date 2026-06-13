@@ -18,7 +18,7 @@ def _sleep():
 
 def test_recuperacao_extracts_core_metrics():
     rows = normalize_recuperacao(DAY, summary=_summary(), sleep=_sleep(),
-                                 hrv=None, respiration=None)
+                                 hrv=None)
     by_key = {r["metric_key"]: r for r in rows}
     assert by_key["resting_hr"]["value"] == 52
     assert by_key["resting_hr"]["source"] == "garmin"
@@ -31,13 +31,13 @@ def test_recuperacao_extracts_core_metrics():
 
 
 def test_recuperacao_skips_missing_fields():
-    rows = normalize_recuperacao(DAY, summary={}, sleep={}, hrv=None, respiration=None)
+    rows = normalize_recuperacao(DAY, summary={}, sleep={}, hrv=None)
     assert rows == []
 
 
 def test_recuperacao_hrv_when_present():
     rows = normalize_recuperacao(DAY, summary={}, sleep={},
-                                 hrv={"hrvSummary": {"lastNightAvg": 42}}, respiration=None)
+                                 hrv={"hrvSummary": {"lastNightAvg": 42}})
     by_key = {r["metric_key"]: r for r in rows}
     assert by_key["hrv_overnight"]["value"] == 42
 

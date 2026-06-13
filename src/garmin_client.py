@@ -151,5 +151,11 @@ class GarminClient:
             lambda: self._client.get_body_composition(start, end),
         )
 
+    def get_activity_exercise_sets(self, activity_id: int) -> dict:
+        return self._cached(
+            f"exercise_sets_{activity_id}",
+            lambda: self._client.get_activity_exercise_sets(activity_id),
+        )
+
     def clear_cache(self) -> None:
         self._cache.clear()

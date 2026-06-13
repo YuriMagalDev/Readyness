@@ -37,3 +37,12 @@ def test_get_sleep_day_caches():
     assert out == {"dailySleepDTO": {"sleepTimeSeconds": 25200}}
     gc.get_sleep_day("2026-06-10")
     assert gc._client.get_sleep_data.call_count == 1
+
+
+def test_get_activity_exercise_sets_caches():
+    gc = _client_with_stub()
+    gc._client.get_activity_exercise_sets.return_value = {"exerciseSets": []}
+    out = gc.get_activity_exercise_sets(123)
+    assert out == {"exerciseSets": []}
+    gc.get_activity_exercise_sets(123)
+    assert gc._client.get_activity_exercise_sets.call_count == 1

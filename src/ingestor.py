@@ -73,7 +73,7 @@ class Ingestor:
 
         rows = []
         rows += normalize_recuperacao(day, summary=summary, sleep=sleep_one,
-                                      hrv=hrv, respiration=None)
+                                      hrv=hrv)
         rows += normalize_atividade(day, summary)
         rows += normalize_prontidao(day, readiness=readiness, max_metrics=max_metrics,
                                     endurance=endurance, race=race)

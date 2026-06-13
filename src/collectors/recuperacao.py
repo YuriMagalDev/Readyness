@@ -6,7 +6,7 @@ def _hours(seconds):
     return round(seconds / 3600, 1) if seconds else None
 
 
-def normalize_recuperacao(day, summary, sleep, hrv, respiration) -> list:
+def normalize_recuperacao(day, summary, sleep, hrv) -> list:
     summary = summary or {}
     sleep_dto = (sleep or {}).get("dailySleepDTO", {}) or {}
     rows = []

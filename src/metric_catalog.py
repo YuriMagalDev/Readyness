@@ -19,7 +19,7 @@ CATALOG = [
     MetricSpec("training_readiness", "Training readiness", "", "prontidao", "diaria"),
     MetricSpec("vo2max", "VO2max", "", "prontidao", "fitness"),
     MetricSpec("endurance_score", "Endurance score", "", "prontidao", "fitness"),
-    MetricSpec("training_status", "Training status", "", "prontidao", "diaria"),
+    MetricSpec("training_status", "Training status", "", "prontidao", "diaria"),  # FR55: sem endpoint estável — fica ausente até confirmar
     MetricSpec("race_pred_5k", "Prova 5k", "time", "prontidao", "fitness", "estimado"),
     MetricSpec("race_pred_10k", "Prova 10k", "time", "prontidao", "fitness", "estimado"),
     MetricSpec("race_pred_21k", "Prova 21k", "time", "prontidao", "fitness", "estimado"),
