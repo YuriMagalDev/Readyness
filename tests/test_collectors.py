@@ -84,3 +84,24 @@ def test_prontidao_skips_missing():
     rows = normalize_prontidao(DAY, readiness=None, max_metrics=None,
                                endurance=None, race=None)
     assert rows == []
+
+
+from src.collectors.corpo import normalize_corpo
+
+
+def test_corpo_extracts_weight_with_real_measured_at():
+    body = {"dateWeightList": [{
+        "weight": 80500, "bodyFat": 18.5, "muscleMass": 60000,
+        "date": "2026-06-13", "timestampGMT": 1781000000000,
+    }]}
+    rows = normalize_corpo(DAY, body)
+    by_key = {r["metric_key"]: r for r in rows}
+    assert by_key["weight_kg"]["value"] == 80.5      # gramas → kg
+    assert by_key["body_fat_pct"]["value"] == 18.5
+    assert by_key["lean_mass_kg"]["value"] == 60.0
+    assert by_key["weight_kg"]["measured_at"].startswith("2026-06-13")
+
+
+def test_corpo_empty_when_no_weigh_in():
+    assert normalize_corpo(DAY, {"dateWeightList": []}) == []
+    assert normalize_corpo(DAY, None) == []
