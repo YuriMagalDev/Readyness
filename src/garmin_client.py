@@ -91,6 +91,12 @@ class GarminClient:
             results.append(data)
         return results
 
+    def get_sleep_day(self, day: str) -> dict:
+        return self._cached(
+            f"sleepday_{day}",
+            lambda: self._client.get_sleep_data(day),
+        )
+
     def get_daily_summary(self, day: str) -> dict:
         return self._cached(
             f"summary_{day}",

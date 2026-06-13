@@ -56,8 +56,7 @@ class Ingestor:
         self._write_metrics(day, summary, race)
 
     def _write_metrics(self, day: str, summary, race):
-        sleep = self._safe_call(lambda: self._client.get_sleep(1))
-        sleep_one = sleep[0] if isinstance(sleep, list) and sleep else (sleep or {})
+        sleep_one = self._safe_call(lambda: self._client.get_sleep_day(day)) or {}
         readiness = self._safe_call(lambda: self._client.get_training_readiness(day))
         max_metrics = self._safe_call(lambda: self._client.get_max_metrics(day))
         endurance = self._safe_call(lambda: self._client.get_endurance_score(day))

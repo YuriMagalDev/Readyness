@@ -22,6 +22,7 @@ def _client():
         "averageSpeed": 3.333, "averageHR": 150,
     }]
     c.get_sleep.return_value = [{"dailySleepDTO": {"sleepTimeSeconds": 25200, "deepSleepSeconds": 5400, "lightSleepSeconds": 14400, "remSleepSeconds": 5400}}]
+    c.get_sleep_day.return_value = {"dailySleepDTO": {"sleepTimeSeconds": 25200, "deepSleepSeconds": 5400, "lightSleepSeconds": 14400, "remSleepSeconds": 5400}}
     c.get_hrv.return_value = None
     c.get_training_readiness.return_value = None
     c.get_max_metrics.return_value = None

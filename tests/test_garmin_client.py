@@ -28,3 +28,12 @@ def test_get_body_composition_caches():
     assert out == {"dateWeightList": []}
     gc.get_body_composition("2026-06-06", "2026-06-13")
     assert gc._client.get_body_composition.call_count == 1
+
+
+def test_get_sleep_day_caches():
+    gc = _client_with_stub()
+    gc._client.get_sleep_data.return_value = {"dailySleepDTO": {"sleepTimeSeconds": 25200}}
+    out = gc.get_sleep_day("2026-06-10")
+    assert out == {"dailySleepDTO": {"sleepTimeSeconds": 25200}}
+    gc.get_sleep_day("2026-06-10")
+    assert gc._client.get_sleep_data.call_count == 1
