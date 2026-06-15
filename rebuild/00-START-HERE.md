@@ -12,6 +12,9 @@ num agente de código, na ordem abaixo.
    métrica, insights rastreáveis. Dê isto ao agente que faz o frontend.
 3. **03-LOCAL-LLM.md** — como plugar uma LLM local (Ollama/llama.cpp) no lugar da API paga,
    com roteamento de modelo e contrato de saída JSON.
+4. **04-CLAUDE-DESIGN-BRIEF.md** — brief CRIATIVO pra ferramenta de design. Dá contexto +
+   liberdade pra propor uma direção visual NOVA (não o layout antigo). Use este em vez do
+   `02` quando quiser que o design surpreenda; use o `02` quando quiser o layout já validado.
 
 ## Como usar (fluxo sugerido)
 
