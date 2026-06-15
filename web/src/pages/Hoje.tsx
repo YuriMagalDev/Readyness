@@ -1,91 +1,213 @@
 import { useEffect, useState } from "react";
-import { fetchToday, fetchAnalysis, regenerateAnalysis, postSync } from "../api";
-import type { Today, Analysis } from "../types";
-import Semaforo from "../components/Semaforo";
-import MetricCard from "../components/MetricCard";
-import InsightList from "../components/InsightList";
+import { fetchToday, fetchAnalysis, fetchMetrics, regenerateAnalysis, postSync } from "../api";
+import type { Today, Analysis, MetricsPayload, MetricCell } from "../types";
+import { Verdict, MetricCard, Insight, Button } from "../ds";
+import { verdictTone, freshOf, whenLabel } from "../lib/ds";
+import { useLucide } from "../lib/useLucide";
+import type { VerdictStatus } from "../ds";
 
-export default function Hoje() {
+const DATE_FMT = new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit", month: "short" });
+
+interface Props {
+  onVerdict?: (v: VerdictStatus) => void;
+}
+
+export default function Hoje({ onVerdict }: Props) {
   const [today, setToday] = useState<Today | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [aiOffline, setAiOffline] = useState(false);
+  const [metricIndex, setMetricIndex] = useState<Map<string, MetricCell>>(new Map());
   const [erro, setErro] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [regen, setRegen] = useState(false);
 
+  useLucide([today, analysis, aiOffline]);
+
   function carregar() {
     setErro("");
-    fetchToday().then(setToday).catch((e) => setErro(e.message));
-    fetchAnalysis().then(setAnalysis).catch(() => { /* análise degrada graciosamente */ });
+    fetchToday()
+      .then((t) => {
+        setToday(t);
+        onVerdict?.(verdictTone(t.status));
+      })
+      .catch((e) => setErro(e.message));
+    fetchAnalysis()
+      .then((a) => {
+        setAnalysis(a);
+        setAiOffline(false);
+        onVerdict?.(verdictTone(a.veredito.status));
+      })
+      .catch(() => {
+        setAnalysis(null);
+        setAiOffline(true); // análise degrada graciosamente; veredito continua via /api/today
+      });
+    fetchMetrics()
+      .then((m: MetricsPayload) => {
+        const idx = new Map<string, MetricCell>();
+        Object.values(m.dominios).forEach((cells) => cells.forEach((c) => idx.set(c.key, c)));
+        setMetricIndex(idx);
+      })
+      .catch(() => setMetricIndex(new Map()));
   }
 
-  useEffect(() => { carregar(); }, []);
+  useEffect(carregar, []);
 
   async function sincronizar() {
     setSyncing(true);
-    try { await postSync(); carregar(); }
-    catch (e) { setErro((e as Error).message); }
-    finally { setSyncing(false); }
+    try {
+      await postSync();
+      carregar();
+    } catch (e) {
+      setErro((e as Error).message);
+    } finally {
+      setSyncing(false);
+    }
   }
 
   async function regenerar() {
     setRegen(true);
-    try { const a = await regenerateAnalysis(); setAnalysis(a); }
-    catch (e) { setErro((e as Error).message); }
-    finally { setRegen(false); }
+    try {
+      const a = await regenerateAnalysis();
+      setAnalysis(a);
+      setAiOffline(false);
+      onVerdict?.(verdictTone(a.veredito.status));
+    } catch {
+      setAiOffline(true);
+    } finally {
+      setRegen(false);
+    }
   }
 
-  if (erro) return <div className="banner-erro">{erro}</div>;
-  if (!today) return <div className="page-sub">Carregando…</div>;
+  // frescor por métrica vindo de /api/metrics (fonte da verdade do "de quando é")
+  function fresh(key: string): { status: ReturnType<typeof freshOf>; when: string } {
+    const cell = metricIndex.get(key);
+    if (!cell) return { status: "fresh", when: "hoje" };
+    return { status: freshOf(cell.status), when: whenLabel(cell.measured_at, cell.status) };
+  }
+
+  if (erro && !today) return <div className="rk-screen"><div className="rk-banner rk-banner--erro"><i data-lucide="triangle-alert"></i><span>{erro}</span></div></div>;
+  if (!today) return <div className="rk-screen"><div className="rk-loading">Carregando…</div></div>;
 
   const m = today.metrics;
   const hrDelta = m.resting_hr_today - m.resting_hr_avg_7d;
-  // veredito determinístico da análise; cai pro status do /api/today se a análise falhar
+  // veredito determinístico: da análise se houver, senão do /api/today (regra)
   const vered = analysis?.veredito ?? { status: today.status, motivo: today.motivo, recomendacao: today.recomendacao };
 
+  const fcF = fresh("resting_hr");
+  const bbF = fresh("body_battery_high");
+  const slF = fresh("sleep_hours");
+
   return (
-    <>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+    <div className="rk-screen">
+      <header className="rk-head">
         <div>
-          <div className="page-title">Status do Dia</div>
-          <div className="page-sub">Prontidão para treino hoje</div>
+          <div className="rk-greeting">Bom dia.</div>
+          <div className="rk-head__sub">
+            <span className="rk-date">{DATE_FMT.format(new Date())}</span>
+          </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn-gen" disabled={syncing} onClick={sincronizar}>
-            {syncing ? "Sincronizando…" : "🔄 Sincronizar"}
-          </button>
-          <button className="btn-gen" disabled={regen} onClick={regenerar}>
-            {regen ? "Gerando…" : "💡 Regenerar análise"}
-          </button>
+        <div className="rk-actions">
+          <Button variant="secondary" size="sm" disabled={syncing} onClick={sincronizar}>
+            <i data-lucide="refresh-cw"></i> {syncing ? "Sincronizando…" : "Sincronizar"}
+          </Button>
+          <Button variant="ghost" size="sm" disabled={regen} onClick={regenerar}>
+            <i data-lucide="sparkles"></i> {regen ? "Gerando…" : "Regenerar análise"}
+          </Button>
         </div>
-      </div>
+      </header>
 
-      <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 16, alignItems: "start" }}>
-        <Semaforo status={vered.status} motivo={vered.motivo} recomendacao={vered.recomendacao} />
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <MetricCard icon="❤" label="FC repouso hoje vs média 7d"
-            value={`${m.resting_hr_today} bpm`}
-            delta={hrDelta === 0 ? "= média" : `${hrDelta > 0 ? "+" : ""}${hrDelta.toFixed(1)} bpm`}
-            deltaWarn={hrDelta >= 5} />
-          <MetricCard icon="⚡" label="Body Battery matinal"
-            value={`${m.morning_battery_avg}`}
-            delta={m.morning_battery_avg < 25 ? "abaixo do limite" : "ok"}
-            deltaWarn={m.morning_battery_avg < 25} />
-          <MetricCard icon="🌙" label="Dívida de sono semanal"
-            value={`${m.sleep_debt_hours}h`}
-            delta={m.sleep_debt_hours >= 2 ? "acima do limite" : "abaixo do limite (2h)"}
-            deltaWarn={m.sleep_debt_hours >= 2} />
-          <MetricCard icon="🏃" label="Corridas esta semana"
-            value={`${m.run_sessions_7d} sessões`}
+      {erro && (
+        <div className="rk-banner rk-banner--erro">
+          <i data-lucide="triangle-alert"></i>
+          <span>{erro}</span>
+        </div>
+      )}
+
+      <Verdict
+        status={verdictTone(vered.status)}
+        date={DATE_FMT.format(new Date())}
+        reason={vered.motivo}
+        recommendation={vered.recomendacao}
+      />
+
+      <section>
+        <div className="rk-seclabel">
+          <span className="eyebrow">Métricas-chave</span>
+          <span className="rk-from-ai">
+            <i data-lucide="layout-grid"></i> ver todas as métricas
+          </span>
+        </div>
+        <div className="rk-metrics">
+          <MetricCard
+            icon={<i data-lucide="heart-pulse"></i>}
+            label="FC repouso vs 7d"
+            value={m.resting_hr_today}
+            unit="bpm"
+            delta={hrDelta === 0 ? "= média" : `${Math.abs(hrDelta).toFixed(1)} bpm`}
+            deltaTone={hrDelta >= 5 ? "up" : hrDelta <= -1 ? "down" : "flat"}
+            status={fcF.status}
+            when={fcF.when}
+          />
+          <MetricCard
+            icon={<i data-lucide="battery-low"></i>}
+            label="Body Battery matinal"
+            value={m.morning_battery_avg}
+            unit="/100"
+            delta={m.morning_battery_avg < 25 ? "baixa" : "ok"}
+            deltaTone={m.morning_battery_avg < 25 ? "up" : "flat"}
+            status={bbF.status}
+            when={bbF.when}
+          />
+          <MetricCard
+            icon={<i data-lucide="moon"></i>}
+            label="Dívida de sono semanal"
+            value={m.sleep_debt_hours}
+            unit="h"
+            delta={m.sleep_debt_hours >= 2 ? "acima do limite" : "sob controle"}
+            deltaTone={m.sleep_debt_hours >= 2 ? "up" : "flat"}
+            status={slF.status}
+            when={slF.when}
+          />
+          <MetricCard
+            icon={<i data-lucide="footprints"></i>}
+            label="Corridas esta semana"
+            value={m.run_sessions_7d}
+            unit="sessões"
             delta={m.run_sessions_7d >= 3 ? "mínimo atingido" : "abaixo de 3"}
-            deltaWarn={m.run_sessions_7d < 3} />
+            deltaTone="flat"
+            status="fresh"
+            when="7 dias"
+          />
         </div>
-      </div>
+      </section>
 
-      <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase",
-        letterSpacing: ".05em", color: "var(--text-faint)", margin: "24px 0 10px" }}>
-        💡 Insights — só com o dado disponível
-      </div>
-      <InsightList insights={analysis?.insights ?? []} />
-    </>
+      <section>
+        <div className="rk-seclabel">
+          <span className="eyebrow">Insights de hoje</span>
+          <span className="rk-from-ai">
+            <i data-lucide="sparkles"></i> IA local
+          </span>
+        </div>
+        <div className="rk-insights">
+          {aiOffline ? (
+            <Insight variant="unavailable" />
+          ) : analysis && analysis.insights.length > 0 ? (
+            analysis.insights.map((ins, i) => (
+              <Insight
+                key={i}
+                text={ins.texto}
+                sources={ins.metricas_usadas.map((s) => ({
+                  label: s.label,
+                  value: s.valor != null ? `${s.valor}${s.unidade ? " " + s.unidade : ""}` : "—",
+                  status: freshOf(s.status),
+                }))}
+              />
+            ))
+          ) : (
+            <span className="rk-insights--empty">Sem insights hoje.</span>
+          )}
+        </div>
+      </section>
+    </div>
   );
 }

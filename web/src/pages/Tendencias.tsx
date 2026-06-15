@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { fetchTrends, regenerateInsights } from "../api";
 import type { Trends } from "../types";
+import { Card, Button } from "../ds";
 import Sparkline from "../components/Sparkline";
+import { useLucide } from "../lib/useLucide";
 
 const LABELS: Record<string, string> = {
   resting_hr: "FC repouso",
@@ -13,7 +15,9 @@ const LABELS: Record<string, string> = {
 };
 
 const DIR_COR: Record<string, string> = {
-  subindo: "var(--amber)", descendo: "var(--green)", estável: "var(--text-dim)",
+  subindo: "var(--easy)",
+  descendo: "var(--go)",
+  estável: "var(--text-faint)",
 };
 
 export default function Tendencias() {
@@ -21,6 +25,8 @@ export default function Tendencias() {
   const [data, setData] = useState<Trends | null>(null);
   const [erro, setErro] = useState("");
   const [regen, setRegen] = useState(false);
+
+  useLucide([data, regen]);
 
   useEffect(() => {
     setData(null);
@@ -34,8 +40,7 @@ export default function Tendencias() {
     try {
       await regenerateInsights("trends", period);
       setData(null);
-      const fresh = await fetchTrends(period);
-      setData(fresh);
+      setData(await fetchTrends(period));
     } catch (e) {
       setErro((e as Error).message);
     } finally {
@@ -44,51 +49,73 @@ export default function Tendencias() {
   }
 
   return (
-    <>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+    <div className="rk-screen">
+      <header className="rk-head">
         <div>
-          <div className="page-title">Tendências</div>
-          <div className="page-sub">Padrões de saúde e treino + leitura da IA</div>
+          <h1 className="rk-title">Tendências</h1>
+          <div className="rk-head__sub">
+            <span className="rk-date">Padrões de saúde e treino + leitura da IA</span>
+          </div>
         </div>
-        <button className="btn-gen" disabled={regen} onClick={regenerar}>
-          {regen ? "Gerando…" : "💡 Regenerar análise"}
-        </button>
-      </div>
+        <Button variant="ghost" size="sm" disabled={regen} onClick={regenerar}>
+          <i data-lucide="sparkles"></i> {regen ? "Gerando…" : "Regenerar análise"}
+        </Button>
+      </header>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+      <div className="rk-switcher" role="tablist">
         {[7, 30, 90].map((p) => (
-          <button key={p} className="nav-item" style={{ width: "auto", borderRadius: 8,
-            background: p === period ? "#222" : "var(--surface)", color: p === period ? "#fff" : "var(--text-dim)" }}
-            onClick={() => setPeriod(p)}>{p}d</button>
+          <button
+            key={p}
+            role="tab"
+            aria-selected={p === period}
+            className={`rk-switcher__btn ${p === period ? "is-active" : ""}`}
+            onClick={() => setPeriod(p)}
+          >
+            {p}d
+          </button>
         ))}
       </div>
 
-      {erro && <div className="banner-erro">{erro}</div>}
-      {!data && !erro && <div className="page-sub">Carregando…</div>}
+      {erro && (
+        <div className="rk-banner rk-banner--erro">
+          <i data-lucide="triangle-alert"></i>
+          <span>{erro}</span>
+        </div>
+      )}
+      {!data && !erro && <div className="rk-loading">Carregando…</div>}
 
       {data && (
         <>
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase",
-              letterSpacing: ".05em", color: "var(--text-faint)", marginBottom: 8 }}>Insights da IA</div>
-            {data.insights.map((ins, i) => (
-              <div key={i} style={{ fontSize: 13, color: "var(--text)", marginBottom: 6 }}>• {ins}</div>
-            ))}
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            {Object.entries(data.metrics).map(([key, m]) => (
-              <div key={key} className="card">
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 11, color: "var(--text-faint)" }}>{LABELS[key] || key}</span>
-                  <span style={{ fontSize: 10, color: DIR_COR[m.trend.direction] }}>{m.trend.direction}</span>
-                </div>
-                <Sparkline data={m.series} cor={DIR_COR[m.trend.direction]} />
+          <Card>
+            <div className="eyebrow" style={{ marginBottom: 10 }}>Insights da IA</div>
+            {data.insights.length > 0 ? (
+              <div className="rk-stack">
+                {data.insights.map((ins, i) => (
+                  <div key={i} style={{ fontSize: "var(--text-base)", color: "var(--text-body)" }}>
+                    {ins}
+                  </div>
+                ))}
               </div>
+            ) : (
+              <span className="rk-faint">Sem insights para este período.</span>
+            )}
+          </Card>
+
+          <div className="rk-grid-2">
+            {Object.entries(data.metrics).map(([key, mt]) => (
+              <Card key={key}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                  <span className="rk-faint">{LABELS[key] || key}</span>
+                  <span style={{ fontSize: "var(--text-xs)", color: DIR_COR[mt.trend.direction] }}>
+                    {mt.trend.direction}
+                  </span>
+                </div>
+                <Sparkline data={mt.series} cor={DIR_COR[mt.trend.direction]} />
+              </Card>
             ))}
           </div>
         </>
       )}
-    </>
+    </div>
   );
 }

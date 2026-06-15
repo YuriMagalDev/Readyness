@@ -1,4 +1,4 @@
-import type { HTMLAttributes, ReactNode } from "react";
+import type { ElementType, HTMLAttributes, ReactNode } from "react";
 import { useStyle } from "./useStyle";
 
 const CSS = `
@@ -25,7 +25,7 @@ const CSS = `
 export interface CardProps extends HTMLAttributes<HTMLElement> {
   variant?: "default" | "raised" | "flat" | "well";
   padding?: "p0" | "p4" | "p5" | "p6";
-  as?: keyof JSX.IntrinsicElements;
+  as?: "div" | "section" | "article" | "li" | "aside";
   children?: ReactNode;
 }
 
@@ -40,7 +40,7 @@ export function Card({
 }: CardProps) {
   useStyle("rd-card-css", CSS);
   const cls = `rd-card rd-card--${variant} rd-card--${padding} ${className}`.trim();
-  const Comp = Tag as keyof JSX.IntrinsicElements;
+  const Comp = Tag as ElementType;
   return (
     <Comp className={cls} {...rest}>
       {children}

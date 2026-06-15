@@ -1,36 +1,37 @@
 import { useEffect, useState } from "react";
 import { generatePlan, fetchPlanStatus } from "../api";
 import type { PlanStatus, PlanSessionStatus } from "../types";
+import { Card, Badge, Button } from "../ds";
+import type { BadgeTone } from "../ds/Badge";
+import { useLucide } from "../lib/useLucide";
 
-const BADGE: Record<string, { txt: string; cor: string; bg: string }> = {
-  feito: { txt: "✓ feito", cor: "var(--green)", bg: "var(--green-bg)" },
-  pendente: { txt: "⏳ pendente", cor: "var(--text-dim)", bg: "var(--surface)" },
-  furou: { txt: "✗ furou", cor: "#fca5a5", bg: "#3a1212" },
+const BADGE: Record<string, { txt: string; tone: BadgeTone }> = {
+  feito: { txt: "feito", tone: "go" },
+  pendente: { txt: "pendente", tone: "neutral" },
+  furou: { txt: "furou", tone: "rest" },
 };
 
-function StatusGrid({ titulo, cor, itens }: { titulo: string; cor: string; itens: PlanSessionStatus[] }) {
+function StatusGrid({ titulo, itens }: { titulo: string; itens: PlanSessionStatus[] }) {
   return (
     <div style={{ flex: 1 }}>
-      <div style={{ fontSize: 12, fontWeight: 600, textTransform: "uppercase",
-        letterSpacing: ".05em", color: cor, marginBottom: 10 }}>{titulo}</div>
+      <div className="eyebrow" style={{ marginBottom: 10 }}>{titulo}</div>
       {itens.length === 0 ? (
-        <div style={{ fontSize: 12, color: "var(--text-faint)" }}>Nenhuma sessão.</div>
+        <div className="rk-faint">Nenhuma sessão.</div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="rk-stack">
           {itens.map((it, i) => {
             const b = BADGE[it.status] || BADGE.pendente;
             return (
-              <div key={i} className="card" style={{ borderLeft: `3px solid ${cor}` }}>
+              <Card key={i} padding="p4">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 13, fontWeight: 500, color: "#fff" }}>{it.dia}</span>
-                  <span style={{ fontSize: 10, color: b.cor, background: b.bg,
-                    padding: "2px 8px", borderRadius: 6 }}>{b.txt}</span>
+                  <span style={{ fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{it.dia}</span>
+                  <Badge tone={b.tone} dot>{b.txt}</Badge>
                 </div>
-                <div style={{ fontSize: 12, color: "var(--text)", marginTop: 4 }}>{it.descricao}</div>
-                <div style={{ fontSize: 10, color: "var(--text-faint)", marginTop: 2 }}>
+                <div className="rk-muted" style={{ marginTop: 4, color: "var(--text-body)" }}>{it.descricao}</div>
+                <div className="rk-faint" style={{ marginTop: 2 }}>
                   {it.duracao} min · {it.intensidade}
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>
@@ -44,18 +45,20 @@ export default function Plano() {
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
 
+  useLucide([status, loading]);
+
   function carregar() {
     fetchPlanStatus().then(setStatus).catch((e) => setErro(e.message));
   }
 
-  useEffect(() => { carregar(); }, []);
+  useEffect(carregar, []);
 
   async function gerar() {
     setLoading(true);
     setErro("");
     try {
       await generatePlan();
-      carregar();  // recarrega plano salvo + cruzamento
+      carregar();
     } catch (e) {
       setErro((e as Error).message);
     } finally {
@@ -67,34 +70,42 @@ export default function Plano() {
   const plan = status?.plan;
   const corrida: PlanSessionStatus[] = match
     ? match.corrida
-    : (plan?.corrida.map((s) => ({ ...s, date: "", status: "pendente" as const })) ?? []);
+    : plan?.corrida.map((s) => ({ ...s, date: "", status: "pendente" as const })) ?? [];
   const musculacao: PlanSessionStatus[] = match
     ? match.musculacao
-    : (plan?.musculacao.map((s) => ({ ...s, date: "", status: "pendente" as const })) ?? []);
+    : plan?.musculacao.map((s) => ({ ...s, date: "", status: "pendente" as const })) ?? [];
 
   return (
-    <>
-      <div className="page-title">Plano Semanal</div>
-      <div className="page-sub">
-        Salvo e cruzado com seus treinos reais · corrida e musculação podem cair no mesmo dia
-      </div>
-      <button className="btn-gen" onClick={gerar} disabled={loading}>
-        {loading ? "Gerando com Sonnet…" : plan ? "⚡ Regerar plano" : "⚡ Gerar plano"}
-      </button>
-      {erro && <div className="banner-erro" style={{ marginTop: 16 }}>{erro}</div>}
+    <div className="rk-screen">
+      <header className="rk-head">
+        <div>
+          <h1 className="rk-title">Plano semanal</h1>
+          <div className="rk-head__sub">
+            <span className="rk-date">Salvo e cruzado com seus treinos reais</span>
+          </div>
+        </div>
+        <Button variant="secondary" size="sm" onClick={gerar} disabled={loading}>
+          <i data-lucide="zap"></i> {loading ? "Gerando…" : plan ? "Regerar plano" : "Gerar plano"}
+        </Button>
+      </header>
+
+      {erro && (
+        <div className="rk-banner rk-banner--erro">
+          <i data-lucide="triangle-alert"></i>
+          <span>{erro}</span>
+        </div>
+      )}
 
       {!plan && !erro && (
-        <div className="page-sub" style={{ marginTop: 16 }}>
-          Nenhum plano salvo para esta semana. Clique em gerar.
-        </div>
+        <div className="rk-faint">Nenhum plano salvo para esta semana. Clique em gerar.</div>
       )}
 
       {plan && (
-        <div style={{ display: "flex", gap: 24, marginTop: 20 }}>
-          <StatusGrid titulo="🏃 Corrida" cor="var(--green)" itens={corrida} />
-          <StatusGrid titulo="💪 Musculação" cor="var(--blue)" itens={musculacao} />
+        <div className="rk-row-2">
+          <StatusGrid titulo="Corrida" itens={corrida} />
+          <StatusGrid titulo="Musculação" itens={musculacao} />
         </div>
       )}
-    </>
+    </div>
   );
 }
