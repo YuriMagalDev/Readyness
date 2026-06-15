@@ -8,7 +8,7 @@ const CFG: Record<MetricStatus, { emoji: string; titulo: string }> = {
 };
 
 export default function FreshnessBadge({ status, measuredAt }: { status: MetricStatus; measuredAt?: string | null }) {
-  const c = CFG[status];
+  const c = CFG[status] ?? { emoji: "·", titulo: String(status) };
   const tip = measuredAt ? `${c.titulo} · medido em ${measuredAt.replace("T", " ")}` : c.titulo;
   return <span title={tip} style={{ fontSize: 11 }}>{c.emoji}</span>;
 }

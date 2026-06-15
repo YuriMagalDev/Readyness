@@ -11,7 +11,7 @@ const CFG = {
 };
 
 export default function Semaforo({ status, motivo, recomendacao }: Props) {
-  const c = CFG[status];
+  const c = CFG[status] ?? { emoji: "⚪", label: String(status ?? "—"), color: "var(--text-dim)" };
   return (
     <div className="card" style={{ display: "flex", flexDirection: "column",
       alignItems: "center", gap: 10, textAlign: "center" }}>
