@@ -65,7 +65,7 @@ export default function Hoje() {
       <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 360px) 1fr", gap: 20, alignItems: "start" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {analysis && (
-            <Semaforo status={analysis.veredito.semaforo}
+            <Semaforo status={analysis.veredito.status}
               motivo={analysis.veredito.motivo}
               recomendacao={analysis.veredito.recomendacao} />
           )}

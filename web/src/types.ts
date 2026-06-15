@@ -163,6 +163,6 @@ export interface Insight {
 
 export interface Analysis {
   date: string;
-  veredito: { semaforo: "verde" | "amarelo" | "vermelho"; motivo: string; recomendacao: string };
+  veredito: { status: "verde" | "amarelo" | "vermelho"; motivo: string; recomendacao: string };
   insights: Insight[];
 }
