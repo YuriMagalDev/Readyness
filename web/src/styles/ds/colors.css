@@ -1,0 +1,95 @@
+/* ============================================================
+   Readiness — Color tokens
+   Warm-paper, editorial-instrument palette.
+   Discipline: INK drives interaction; three muted SEMANTIC hues
+   carry the verdict (traffic light); freshness uses neutral ink
+   weights + treatment, never loud color.
+   All colors authored in oklch with hex reference in comments.
+   ============================================================ */
+
+:root {
+  /* ---- Warm paper surfaces (base) ---- */
+  --paper-0: oklch(0.974 0.008 83);   /* #F4F0E7  app background — warm paper */
+  --paper-1: oklch(0.991 0.006 86);   /* #FBF9F3  raised card surface */
+  --paper-2: oklch(1 0 0);            /* #FFFFFF  highest surface / wells */
+  --paper-sunk: oklch(0.955 0.010 82);/* #ECE7DB  inset / track / empty well */
+
+  /* ---- Ink (warm near-black → faint) ---- */
+  --ink-0: oklch(0.235 0.012 67);     /* #2B2722  primary text / headlines */
+  --ink-1: oklch(0.345 0.011 68);     /* #46413A  strong secondary text */
+  --ink-2: oklch(0.505 0.010 70);     /* #6E685F  muted text / labels */
+  --ink-3: oklch(0.660 0.009 73);     /* #9C968B  faint text / captions */
+  --ink-4: oklch(0.800 0.008 78);     /* #CBC6BB  hairline-strong / disabled */
+
+  /* ---- Hairlines & borders (warm) ---- */
+  --line-1: oklch(0.905 0.008 80);    /* #E2DDD1  default hairline */
+  --line-2: oklch(0.860 0.010 80);    /* #D4CEC0  stronger divider */
+  --line-3: oklch(0.940 0.006 82);    /* #ECE8DE  faint inner line */
+
+  /* ---- Brand mark accent (deep ink-clay, used sparingly) ---- */
+  --brand: oklch(0.515 0.085 44);     /* #8A5A42  signature clay — logo, focus accent */
+  --brand-ink: oklch(0.400 0.075 44); /* #6B4533  pressed/hover clay */
+  --brand-wash: oklch(0.945 0.018 60);/* #F1E7DC  faint clay wash bg */
+
+  /* ============================================================
+     VERDICT semantics — the daily traffic light.
+     Muted, sophisticated, never neon. Each has: core, ink (text on
+     wash), wash (tinted surface), line (tinted border), dot (marker).
+     ============================================================ */
+
+  /* GO — pode treinar (green / sage eucalyptus) */
+  --go: oklch(0.560 0.094 152);       /* #3F7D5B */
+  --go-ink: oklch(0.430 0.082 152);   /* #2E6044 */
+  --go-wash: oklch(0.955 0.030 152);  /* #E4F0E7 */
+  --go-line: oklch(0.860 0.055 152);  /* #BBD9C4 */
+
+  /* EASY — pegue leve (amber / ochre) */
+  --easy: oklch(0.705 0.115 73);      /* #C68A3A */
+  --easy-ink: oklch(0.545 0.100 66);  /* #93632A */
+  --easy-wash: oklch(0.960 0.038 80); /* #F4ECDA */
+  --easy-line: oklch(0.865 0.070 78); /* #E0CFA7 */
+
+  /* REST — descanse (clay / terracotta) */
+  --rest: oklch(0.585 0.130 33);      /* #B25540 */
+  --rest-ink: oklch(0.480 0.120 33);  /* #93412F */
+  --rest-wash: oklch(0.955 0.030 38); /* #F2E5DF */
+  --rest-line: oklch(0.855 0.060 36); /* #E0C2B5 */
+
+  /* ============================================================
+     FRESHNESS — confidence in a number's age.
+     Fresh = full ink + live dot. Stale = muted. Estimated = brand-
+     neutral dashed/tilde. Absent = faint, never alarming.
+     ============================================================ */
+  --fresh: oklch(0.560 0.094 152);    /* live / fresh — same family as GO */
+  --fresh-dot: oklch(0.560 0.094 152);
+  --stale: var(--ink-3);              /* desatualizado — quiet, not error */
+  --estimated: oklch(0.520 0.045 250);/* #5B6B86  estimated — cool slate, distinct from semantics */
+  --estimated-wash: oklch(0.955 0.012 250);
+  --absent: var(--ink-4);             /* ausente — faint, elegant emptiness */
+
+  /* ---- Focus ring ---- */
+  --focus: oklch(0.515 0.085 44 / 0.45);
+
+  /* ============================================================
+     SEMANTIC ALIASES — consume these in components.
+     ============================================================ */
+  --bg-app: var(--paper-0);
+  --surface-card: var(--paper-1);
+  --surface-raised: var(--paper-2);
+  --surface-well: var(--paper-sunk);
+
+  --text-strong: var(--ink-0);
+  --text-body: var(--ink-1);
+  --text-muted: var(--ink-2);
+  --text-faint: var(--ink-3);
+  --text-disabled: var(--ink-4);
+  --text-on-ink: var(--paper-1);
+
+  --border-card: var(--line-1);
+  --border-divider: var(--line-2);
+  --border-faint: var(--line-3);
+
+  --action: var(--ink-0);
+  --action-hover: oklch(0.305 0.012 67);
+  --action-text: var(--paper-1);
+}
