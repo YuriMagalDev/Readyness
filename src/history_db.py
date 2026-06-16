@@ -68,6 +68,10 @@ class HistoryDB:
                 "measured_at TEXT, source TEXT NOT NULL, "
                 "PRIMARY KEY (date, metric_key))"
             )
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS bot_state ("
+                "key TEXT PRIMARY KEY, value TEXT)"
+            )
 
     @staticmethod
     def _add_missing_columns(conn, table: str, columns: list, type_for):
@@ -191,6 +195,21 @@ class HistoryDB:
             conn.execute(
                 "DELETE FROM ai_insights WHERE kind = ? AND cache_key = ?",
                 (kind, cache_key),
+            )
+
+    def get_state(self, key: str):
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT value FROM bot_state WHERE key = ?", (key,)
+            ).fetchone()
+            return row["value"] if row else None
+
+    def set_state(self, key: str, value: str):
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT INTO bot_state (key, value) VALUES (?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                (key, value),
             )
 
     def latest_snapshot_date(self):
