@@ -25,7 +25,7 @@ async def _send_saldo(context, day, wake):
     txt = messages.format_saldo(
         analysis["veredito"], core.collect_metrics(ctx), sleep=core.sleep_view(ctx), wake=wake
     )
-    await context.bot.send_message(chat_id=cfg.chat_id, text=txt)
+    await context.bot.send_message(chat_id=cfg.chat_id, text=txt, parse_mode=messages.PARSE_MODE)
     mark_saldo_sent(db, day)
 
 

@@ -37,9 +37,9 @@ async def cmd_saldo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         txt = messages.format_saldo(
             analysis["veredito"], core.collect_metrics(ctx), sleep=core.sleep_view(ctx)
         )
+        await update.message.reply_text(txt, parse_mode=messages.PARSE_MODE)
     except Exception as e:  # noqa: BLE001
-        txt = f"Não consegui montar o saldo agora ({e})."
-    await update.message.reply_text(txt)
+        await update.message.reply_text(f"Não consegui montar o saldo agora ({e}).")
 
 
 async def cmd_insights(update: Update, context: ContextTypes.DEFAULT_TYPE):
