@@ -34,3 +34,14 @@ async def test_job_wake_envia_uma_vez(tmp_path, monkeypatch):
     assert ctx.bot.send_message.await_count == 1
     await jobs.job_wake(ctx)
     assert ctx.bot.send_message.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_job_wake_nao_consulta_fora_da_janela(tmp_path, monkeypatch):
+    db = HistoryDB(db_path=str(tmp_path / "h.db"))
+    client = MagicMock()
+    ctx = _job_ctx(db, client)
+    monkeypatch.setattr(jobs, "_now_time", lambda: dt.time(4, 0))
+    await jobs.job_wake(ctx)
+    client.get_sleep_day.assert_not_called()
+    ctx.bot.send_message.assert_not_awaited()
