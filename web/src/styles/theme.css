@@ -1,9 +1,0 @@
-/* Readiness — global entry. Warm-paper design system tokens + kit composition.
-   (Substitui o antigo tema escuro.) Apenas @imports + a folha de composição. */
-@import url('./ds/fonts.css');
-@import url('./ds/colors.css');
-@import url('./ds/typography.css');
-@import url('./ds/spacing.css');
-@import url('./ds/base.css');
-@import url('./ds/dark.css');
-@import url('./kit.css');

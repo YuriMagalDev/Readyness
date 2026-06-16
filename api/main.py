@@ -5,7 +5,6 @@ from pathlib import Path
 from fastapi import FastAPI, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
 
 from src.garmin_client import GarminClient
 from src.history_db import HistoryDB
@@ -151,8 +150,3 @@ def analysis_force(payload: dict = Body(default={})):
     d = payload.get("date") or _d.date.today().isoformat()
     return _safe(lambda: services.build_analysis(get_db(), d, force=True), code=503)
 
-
-# Serve build React em prod, se existir (montado por último pra não capturar /api).
-_dist = Path("web/dist")
-if _dist.exists():
-    app.mount("/", StaticFiles(directory=str(_dist), html=True), name="static")
