@@ -37,9 +37,21 @@ class HistoryDB:
             else f"{c} REAL"
             for c in ACTIVITY_COLUMNS
         )
+        def snap_type(c: str) -> str:
+            return "TEXT PRIMARY KEY" if c == "date" else "REAL"
+
+        def act_type(c: str) -> str:
+            if c == "activity_id":
+                return "INTEGER PRIMARY KEY"
+            return "TEXT" if c in ("date", "name", "type", "splits_json", "sets_json") else "REAL"
+
         with self._connect() as conn:
             conn.execute(f"CREATE TABLE IF NOT EXISTS daily_snapshot ({snap_cols})")
             conn.execute(f"CREATE TABLE IF NOT EXISTS activity ({act_cols})")
+            # migração: tabela antiga pode não ter colunas novas (CREATE IF NOT EXISTS
+            # não altera tabela existente). Adiciona as que faltam sem quebrar dados.
+            self._add_missing_columns(conn, "daily_snapshot", SNAPSHOT_COLUMNS, snap_type)
+            self._add_missing_columns(conn, "activity", ACTIVITY_COLUMNS, act_type)
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS weekly_plan ("
                 "week_start TEXT PRIMARY KEY, plan_json TEXT NOT NULL, created_at TEXT NOT NULL)"
@@ -56,6 +68,16 @@ class HistoryDB:
                 "measured_at TEXT, source TEXT NOT NULL, "
                 "PRIMARY KEY (date, metric_key))"
             )
+
+    @staticmethod
+    def _add_missing_columns(conn, table: str, columns: list, type_for):
+        existing = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+        for c in columns:
+            if c in existing:
+                continue
+            # ALTER não aceita PRIMARY KEY; chaves já existem na tabela original.
+            sql_type = type_for(c).replace(" PRIMARY KEY", "")
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {c} {sql_type}")
 
     def _upsert(self, table: str, columns: list, row: dict):
         cols = [c for c in columns if c in row]
