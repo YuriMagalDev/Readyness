@@ -34,7 +34,9 @@ async def cmd_saldo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         ctx = core.load_context(client)
         analysis = core.daily_analysis(db, day)
-        txt = messages.format_saldo(analysis["veredito"], core.collect_metrics(ctx))
+        txt = messages.format_saldo(
+            analysis["veredito"], core.collect_metrics(ctx), sleep=core.sleep_view(ctx)
+        )
     except Exception as e:  # noqa: BLE001
         txt = f"Não consegui montar o saldo agora ({e})."
     await update.message.reply_text(txt)
