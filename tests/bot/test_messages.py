@@ -12,6 +12,14 @@ def test_saldo_tem_veredito_e_metricas():
     assert "2.4" in txt
     assert "3" in txt
 
+def test_saldo_tolera_metricas_ausentes():
+    vazio = {"resting_hr_today": None, "resting_hr_avg_7d": None, "morning_battery_avg": None,
+             "sleep_debt_hours": None, "run_sessions_7d": 0}
+    txt = format_saldo(VER, vazio)  # não pode lançar
+    assert "FC repouso  —" in txt
+    assert "Body Battery —" in txt
+
+
 def test_insights_vazio():
     assert "indisponível" in format_insights([]).lower()
 

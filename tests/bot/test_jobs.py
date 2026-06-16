@@ -45,3 +45,21 @@ async def test_job_wake_nao_consulta_fora_da_janela(tmp_path, monkeypatch):
     await jobs.job_wake(ctx)
     client.get_sleep_day.assert_not_called()
     ctx.bot.send_message.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_job_wake_fallback_fim_da_janela_sem_acordar(tmp_path, monkeypatch):
+    # fim da janela (11:00), sem hora de acordar no DTO -> manda mesmo assim
+    db = HistoryDB(db_path=str(tmp_path / "h.db"))
+    client = MagicMock()
+    client.get_sleep_day.return_value = {"dailySleepDTO": {}}  # sem sleepEnd
+    monkeypatch.setattr(jobs.core, "load_context", lambda c: {
+        "resting_hr_today": None, "resting_hr_avg_7d": None, "morning_battery_avg": None,
+        "sleep_debt_hours": None, "run_sessions_7d": 0})
+    monkeypatch.setattr(jobs.core, "daily_analysis", lambda db, day, force=False: {
+        "veredito": {"status": "verde", "motivo": "x", "recomendacao": "y"}, "insights": []})
+    monkeypatch.setattr(jobs, "Ingestor", lambda c, d: MagicMock(sync_today=lambda: None))
+    monkeypatch.setattr(jobs, "_now_time", lambda: dt.time(11, 0))
+    ctx = _job_ctx(db, client)
+    await jobs.job_wake(ctx)
+    assert ctx.bot.send_message.await_count == 1  # fallback disparou

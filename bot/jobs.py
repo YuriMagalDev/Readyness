@@ -38,8 +38,8 @@ async def job_wake(context: ContextTypes.DEFAULT_TYPE):
     start = dt.time(*cfg.wake_start)
     end = dt.time(*cfg.wake_end)
     now = _now_time()
-    if now < start or now > end:
-        return
+    if now < start:
+        return  # antes da janela: não consulta Garmin ainda
     try:
         sleep_day = client.get_sleep_day(day)
     except Exception:  # noqa: BLE001
@@ -48,6 +48,7 @@ async def job_wake(context: ContextTypes.DEFAULT_TYPE):
     if wake:
         await _send_saldo(context, day, wake)
     elif now >= end:
+        # fim da janela sem detectar acordar: manda com o que tiver
         await _send_saldo(context, day, None)
 
 
