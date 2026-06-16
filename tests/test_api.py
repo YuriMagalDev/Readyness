@@ -106,7 +106,7 @@ def _hist_with_snapshots():
 
 def test_build_trends():
     db = _hist_with_snapshots()
-    with patch("api.services.InsightEngine") as MockEng:
+    with patch("src.services_core.InsightEngine") as MockEng:
         MockEng.return_value.trend_insights.return_value = ["obs1", "obs2"]
         payload = services.build_trends(db, period=14)
     assert "metrics" in payload
@@ -283,7 +283,7 @@ def test_build_today_passes_db_to_engine_and_force():
 
 def test_build_trends_passes_force():
     db = _hist_with_snapshots()
-    with patch("api.services.InsightEngine") as MockEng:
+    with patch("src.services_core.InsightEngine") as MockEng:
         MockEng.return_value.trend_insights.return_value = ["a"]
         services.build_trends(db, period=14, force=True)
     assert MockEng.return_value.trend_insights.call_args[1]["force"] is True

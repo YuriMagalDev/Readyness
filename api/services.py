@@ -12,6 +12,7 @@ from src.analytics import Analytics
 from src.insight_engine import InsightEngine
 from src.extractors import splits_from_garmin
 from src.plan_tracker import week_start_of, match_plan
+from src.services_core import save_checkin, build_trends, _period_range  # noqa: F401
 
 
 def _load_context(client):
@@ -205,20 +206,6 @@ def build_data(client) -> dict:
     }
 
 
-def _period_range(period: int):
-    end = date.today()
-    start = end - timedelta(days=period - 1)
-    return start.isoformat(), end.isoformat()
-
-
-def build_trends(db, period: int = 30, force: bool = False) -> dict:
-    start, end = _period_range(period)
-    snaps = db.get_snapshots(start, end)
-    metrics = Analytics().summary(snaps)
-    insights = InsightEngine(db=db).trend_insights(metrics, period=period, force=force)
-    return {"period": period, "metrics": metrics, "insights": insights}
-
-
 def build_activities(db, period: int = 30) -> list:
     start, end = _period_range(period)
     return db.get_activities(start, end)
@@ -243,21 +230,5 @@ def build_metrics(db, date: str, today: _dt.date = None) -> dict:
     return read_metrics(db, date, today=today)
 
 
-_CHECKIN_KEYS = {"hidratacao", "energia", "soreness", "alimentacao"}
-
-
 def build_analysis(db, date: str, force: bool = False) -> dict:
     return DailyAnalysis(db=db).build(date, force=force)
-
-
-def save_checkin(db, payload: dict, today: _dt.date = None) -> dict:
-    today = today or _dt.date.today()
-    now = _dt.datetime.now().isoformat(timespec="minutes")
-    day = today.isoformat()
-    for key, val in payload.items():
-        if key not in _CHECKIN_KEYS:
-            continue
-        if not isinstance(val, int) or not (1 <= val <= 5):
-            raise ValueError(f"{key} deve ser inteiro 1-5")
-        db.upsert_metric(day, key, val, now, "manual")
-    return {"ok": True}

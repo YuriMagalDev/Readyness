@@ -197,6 +197,13 @@ class HistoryDB:
                 (kind, cache_key),
             )
 
+    def get_metrics_for_date(self, day: str) -> list:
+        with self._connect() as conn:
+            return [dict(r) for r in conn.execute(
+                "SELECT metric_key, value, measured_at, source FROM metric_value "
+                "WHERE date = ?", (day,)
+            )]
+
     def get_state(self, key: str):
         with self._connect() as conn:
             row = conn.execute(
