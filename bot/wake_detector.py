@@ -10,7 +10,7 @@ def wake_time_local(sleep_day: dict):
     ts = dto.get("sleepEndTimestampLocal")
     if not ts:
         return None
-    return _dt.datetime.utcfromtimestamp(ts / 1000).strftime("%H:%M")
+    return _dt.datetime.fromtimestamp(ts / 1000, _dt.timezone.utc).strftime("%H:%M")
 
 
 def woke_up_today(sleep_day: dict) -> bool:

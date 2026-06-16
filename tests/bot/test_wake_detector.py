@@ -2,7 +2,7 @@ import datetime as dt
 from bot.wake_detector import wake_time_local, woke_up_today
 
 _TS = 1781503920000
-_EXPECTED = dt.datetime.utcfromtimestamp(_TS / 1000).strftime("%H:%M")
+_EXPECTED = dt.datetime.fromtimestamp(_TS / 1000, dt.timezone.utc).strftime("%H:%M")
 
 def test_extrai_hora_de_acordar():
     assert wake_time_local({"dailySleepDTO": {"sleepEndTimestampLocal": _TS}}) == _EXPECTED
