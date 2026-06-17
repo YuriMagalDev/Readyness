@@ -1,11 +1,12 @@
 import datetime as dt
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from bot import core, messages
 from bot.checkin import CHECKINS, scale_keyboard, parse_callback, prompt_text
 from bot.charts import recovery_chart_png
-from src.services_core import save_checkin, build_trends
+from bot.runs import filter_runs
+from src.services_core import save_checkin, build_trends, build_run_detail
 
 
 def _authorized(update: Update, context) -> bool:
@@ -102,3 +103,55 @@ async def cmd_mes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _authorized(update, context):
         return
     await _send_trends(update, context, 30, "Mês")
+
+
+def _run_button_label(raw: dict) -> str:
+    data = (raw.get("startTimeLocal") or "")[:10]
+    nome = raw.get("activityName") or "Corrida"
+    dist = raw.get("distance")
+    km = f"{dist / 1000:.1f}km" if dist else "—"
+    return f"{data} · {nome} · {km}"
+
+
+async def cmd_atividades(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _authorized(update, context):
+        return
+    client = context.bot_data["client"]
+    try:
+        runs = filter_runs(client.get_activities(7))[:8]   # últimas 8 corridas
+    except Exception:  # noqa: BLE001
+        await update.message.reply_text("Não consegui buscar suas atividades agora.")
+        return
+    if not runs:
+        await update.message.reply_text("Nenhuma corrida recente encontrada.")
+        return
+    teclado = [
+        [InlineKeyboardButton(_run_button_label(r), callback_data=f"act:{r['activityId']}")]
+        for r in runs
+    ]
+    await update.message.reply_text(
+        "Escolha uma corrida pra ver o insight:", reply_markup=InlineKeyboardMarkup(teclado)
+    )
+
+
+async def on_activity_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _authorized(update, context):
+        return
+    q = update.callback_query
+    await q.answer()
+    try:
+        aid = int(q.data.split(":", 1)[1])
+    except (ValueError, IndexError):
+        await q.edit_message_text("Atividade inválida.")
+        return
+    db = context.bot_data["db"]
+    client = context.bot_data["client"]
+    try:
+        detail = build_run_detail(db, client, aid)
+    except Exception:  # noqa: BLE001
+        await q.edit_message_text("Não consegui analisar essa corrida agora.")
+        return
+    await q.edit_message_text(
+        messages.format_activity(detail["activity"], detail["insight"]),
+        parse_mode=messages.PARSE_MODE,
+    )
