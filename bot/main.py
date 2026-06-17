@@ -1,4 +1,6 @@
 import datetime as dt
+import os
+from zoneinfo import ZoneInfo
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler,
 )
@@ -7,6 +9,10 @@ from bot.config import Config
 from bot import handlers, jobs
 from src.history_db import HistoryDB
 from src.garmin_client import GarminClient
+
+# JobQueue do PTB roda em UTC por padrão; ancoramos os horários no fuso local (TZ)
+# pra os slots dispararem na hora certa de São Paulo, não em UTC.
+TZ = ZoneInfo(os.getenv("TZ", "America/Sao_Paulo"))
 
 
 def build_app() -> Application:
@@ -26,8 +32,8 @@ def build_app() -> Application:
 
     jq = app.job_queue
     for (h, m) in cfg.morning_slots:
-        jq.run_daily(jobs.job_morning, time=dt.time(hour=h, minute=m))
-    jq.run_daily(jobs.job_checkin, time=dt.time(hour=cfg.checkin_hour, minute=0))
+        jq.run_daily(jobs.job_morning, time=dt.time(hour=h, minute=m, tzinfo=TZ))
+    jq.run_daily(jobs.job_checkin, time=dt.time(hour=cfg.checkin_hour, minute=0, tzinfo=TZ))
     return app
 
 
