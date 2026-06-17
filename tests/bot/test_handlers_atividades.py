@@ -67,3 +67,13 @@ async def test_botao_chat_alheio_ignora(tmp_path):
     update.callback_query.edit_message_text = AsyncMock()
     await handlers.on_activity_button(update, _ctx(db, MagicMock()))
     update.callback_query.edit_message_text.assert_not_awaited()
+
+@pytest.mark.asyncio
+async def test_atividades_persiste_corridas_no_db(tmp_path):
+    db = HistoryDB(db_path=str(tmp_path / "h.db"))
+    client = MagicMock()
+    client.get_activities.return_value = [_raw_run(1, "Corrida A")]
+    update = MagicMock(); update.effective_chat.id = 99
+    update.message.reply_text = AsyncMock()
+    await handlers.cmd_atividades(update, _ctx(db, client))
+    assert db.get_activity(1) is not None      # corrida listada foi ingerida

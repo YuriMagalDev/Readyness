@@ -7,6 +7,7 @@ from bot.checkin import CHECKINS, scale_keyboard, parse_callback, prompt_text
 from bot.charts import recovery_chart_png
 from bot.runs import filter_runs
 from src.services_core import save_checkin, build_trends, build_run_detail
+from src.extractors import activity_from_garmin
 
 
 def _authorized(update: Update, context) -> bool:
@@ -118,13 +119,16 @@ async def cmd_atividades(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     client = context.bot_data["client"]
     try:
-        runs = filter_runs(client.get_activities(7))[:8]   # últimas 8 corridas
+        runs = filter_runs(client.get_activities(7, fresh=True))[:8]   # últimas 8 corridas
     except Exception:  # noqa: BLE001
         await update.message.reply_text("Não consegui buscar suas atividades agora.")
         return
     if not runs:
         await update.message.reply_text("Nenhuma corrida recente encontrada.")
         return
+    db = context.bot_data["db"]
+    for r in runs:
+        db.upsert_activity(activity_from_garmin(r))
     teclado = [
         [InlineKeyboardButton(_run_button_label(r), callback_data=f"act:{r['activityId']}")]
         for r in runs

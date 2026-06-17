@@ -80,7 +80,7 @@ async def job_runs(context: ContextTypes.DEFAULT_TYPE):
     db = context.bot_data["db"]
     client = context.bot_data["client"]
     try:
-        runs = filter_runs(client.get_activities(2))  # ~últimas 48h
+        runs = filter_runs(client.get_activities(2, fresh=True))  # ~últimas 48h
     except Exception:  # noqa: BLE001 — Garmin 429/fora: tenta no próximo ciclo
         return
     seeded = db.get_state(_RUNS_SEEDED) == "1"

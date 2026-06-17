@@ -30,10 +30,11 @@ class GarminClient:
         except GarminConnectAuthenticationError as e:
             raise RuntimeError(f"Garmin auth failed: {e}") from e
 
-    def _cached(self, key: str, fetch_fn, store_if=None):
-        data = self._cache.get(key)
-        if data is not None:
-            return data
+    def _cached(self, key: str, fetch_fn, store_if=None, fresh: bool = False):
+        if not fresh:
+            data = self._cache.get(key)
+            if data is not None:
+                return data
         try:
             data = fetch_fn()
         except GarminConnectAuthenticationError:
@@ -52,10 +53,11 @@ class GarminClient:
         dto = (sleep_day or {}).get("dailySleepDTO") or {}
         return dto.get("sleepTimeSeconds") is not None
 
-    def get_activities(self, days: int = 28) -> list:
+    def get_activities(self, days: int = 28, fresh: bool = False) -> list:
         return self._cached(
             f"activities_{days}_{date.today()}",
             lambda: self._client.get_activities(0, days),
+            fresh=fresh,
         )
 
     def get_sleep(self, days: int = 14) -> list:
