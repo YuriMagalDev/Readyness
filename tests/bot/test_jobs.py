@@ -63,3 +63,26 @@ async def test_job_wake_fallback_fim_da_janela_sem_acordar(tmp_path, monkeypatch
     ctx = _job_ctx(db, client)
     await jobs.job_wake(ctx)
     assert ctx.bot.send_message.await_count == 1  # fallback disparou
+
+
+@pytest.mark.asyncio
+async def test_job_wake_degrada_quando_garmin_falha(tmp_path, monkeypatch):
+    # Garmin fora (load_context lança): manda o veredito do DB mesmo assim e marca enviado
+    db = HistoryDB(db_path=str(tmp_path / "h.db"))
+    client = MagicMock()
+    client.get_sleep_day.return_value = {"dailySleepDTO": {"sleepEndTimestampLocal": 1781503920000}}
+
+    def _boom(c):
+        raise TypeError("garmin 429")
+
+    monkeypatch.setattr(jobs.core, "load_context", _boom)
+    monkeypatch.setattr(jobs.core, "daily_analysis", lambda db, day, force=False: {
+        "veredito": {"status": "amarelo", "motivo": "m", "recomendacao": "r"}, "insights": []})
+    monkeypatch.setattr(jobs, "Ingestor", lambda c, d: MagicMock(sync_today=lambda: None))
+    monkeypatch.setattr(jobs, "_now_time", lambda: dt.time(6, 0))
+    ctx = _job_ctx(db, client)
+    await jobs.job_wake(ctx)
+    assert ctx.bot.send_message.await_count == 1  # mandou degradado
+    # não re-tenta no mesmo dia
+    await jobs.job_wake(ctx)
+    assert ctx.bot.send_message.await_count == 1

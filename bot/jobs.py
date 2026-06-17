@@ -20,11 +20,14 @@ async def _send_saldo(context, day, wake):
         Ingestor(client, db).sync_today()
     except Exception:  # noqa: BLE001 — sem sync ainda dá pra mandar do cache
         pass
-    ctx = core.load_context(client)
+    # veredito/insights vêm do DB (confiáveis); só as métricas/sono dependem do Garmin.
+    try:
+        ctx = core.load_context(client)
+        met, sleep = core.collect_metrics(ctx), core.sleep_view(ctx)
+    except Exception:  # noqa: BLE001 — Garmin fora/429: degrada, manda o veredito mesmo assim
+        met, sleep = {}, {}
     analysis = core.daily_analysis(db, day)
-    txt = messages.format_saldo(
-        analysis["veredito"], core.collect_metrics(ctx), sleep=core.sleep_view(ctx), wake=wake
-    )
+    txt = messages.format_saldo(analysis["veredito"], met, sleep=sleep, wake=wake)
     await context.bot.send_message(chat_id=cfg.chat_id, text=txt, parse_mode=messages.PARSE_MODE)
     mark_saldo_sent(db, day)
 
