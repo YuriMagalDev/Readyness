@@ -46,3 +46,18 @@ def test_get_activity_exercise_sets_caches():
     assert out == {"exerciseSets": []}
     gc.get_activity_exercise_sets(123)
     assert gc._client.get_activity_exercise_sets.call_count == 1
+
+
+def test_sleep_vazio_nao_cacheia_refaz_ate_vir_real():
+    # sono ainda não processado (sleepTimeSeconds None) não pode ser cacheado:
+    # próxima chamada re-busca e, quando vier o real, passa a servir do cache
+    gc = _client_with_stub()
+    gc._client.get_sleep_data.side_effect = [
+        {"dailySleepDTO": {"sleepTimeSeconds": None}},   # vazio -> não cacheia
+        {"dailySleepDTO": {"sleepTimeSeconds": 29400}},  # real -> cacheia
+    ]
+    assert gc.get_sleep_day("2026-06-17")["dailySleepDTO"]["sleepTimeSeconds"] is None
+    assert gc.get_sleep_day("2026-06-17")["dailySleepDTO"]["sleepTimeSeconds"] == 29400
+    assert gc._client.get_sleep_data.call_count == 2
+    gc.get_sleep_day("2026-06-17")  # agora vem do cache
+    assert gc._client.get_sleep_data.call_count == 2

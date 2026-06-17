@@ -30,7 +30,7 @@ class GarminClient:
         except GarminConnectAuthenticationError as e:
             raise RuntimeError(f"Garmin auth failed: {e}") from e
 
-    def _cached(self, key: str, fetch_fn):
+    def _cached(self, key: str, fetch_fn, store_if=None):
         data = self._cache.get(key)
         if data is not None:
             return data
@@ -41,8 +41,16 @@ class GarminClient:
             data = fetch_fn()
         except GarminConnectTooManyRequestsError as e:
             raise RuntimeError("Garmin rate limit hit — try again later") from e
-        self._cache.set(key, data)
+        # store_if=False -> dado "vazio" (ex.: sono ainda não processado): não cacheia,
+        # pra o próximo slot re-buscar fresh em vez de servir vazio por 6h.
+        if store_if is None or store_if(data):
+            self._cache.set(key, data)
         return data
+
+    @staticmethod
+    def _sleep_is_ready(sleep_day) -> bool:
+        dto = (sleep_day or {}).get("dailySleepDTO") or {}
+        return dto.get("sleepTimeSeconds") is not None
 
     def get_activities(self, days: int = 28) -> list:
         return self._cached(
@@ -57,6 +65,7 @@ class GarminClient:
             data = self._cached(
                 f"sleep_{day}",
                 lambda d=day: self._client.get_sleep_data(d),
+                store_if=self._sleep_is_ready,
             )
             results.append(data)
         return results
@@ -98,6 +107,7 @@ class GarminClient:
         return self._cached(
             f"sleepday_{day}",
             lambda: self._client.get_sleep_data(day),
+            store_if=self._sleep_is_ready,
         )
 
     def get_daily_summary(self, day: str) -> dict:
