@@ -26,7 +26,12 @@ class DataProcessor:
         target_seconds = SLEEP_TARGET_HOURS * 3600
         total_debt = 0.0
         for day in sleep_data:
-            slept = day.get("dailySleepDTO", {}).get("sleepTimeSeconds", target_seconds)
+            dto = (day or {}).get("dailySleepDTO") or {}
+            slept = dto.get("sleepTimeSeconds")
+            # chave pode existir com None (sono sincronizado mas sem total ainda) ->
+            # trata como dia neutro (sem dívida), não quebra com float - None
+            if slept is None:
+                continue
             deficit = target_seconds - slept
             if deficit > 0:
                 total_debt += deficit

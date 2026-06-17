@@ -51,6 +51,18 @@ def test_sleep_debt_hours():
     ]
     assert dp.sleep_debt_hours(sleep_data) == 5.0
 
+def test_sleep_debt_ignora_none_sem_quebrar():
+    # sono recem-sincronizado: chave existe com None -> nao pode dar float - None
+    dp = DataProcessor()
+    sleep_data = [
+        {"dailySleepDTO": {"sleepTimeSeconds": None}},   # hoje, ainda sem total
+        {"dailySleepDTO": {}},                            # sem a chave
+        {"dailySleepDTO": None},                          # DTO nulo
+        {},                                               # dia vazio
+        {"dailySleepDTO": {"sleepTimeSeconds": 18000}},  # 5h -> 2h de divida
+    ]
+    assert dp.sleep_debt_hours(sleep_data) == 2.0
+
 def test_morning_body_battery():
     dp = DataProcessor()
     battery_data = [[{"charged": 65, "drained": 0}], [{"charged": 72, "drained": 0}]]
