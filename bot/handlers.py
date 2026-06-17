@@ -58,8 +58,9 @@ async def cmd_insights(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _authorized(update, context):
         return
+    day = dt.date.today().isoformat()
     for c in CHECKINS:
-        await update.message.reply_text(prompt_text(c), reply_markup=scale_keyboard(c["key"]))
+        await update.message.reply_text(prompt_text(c), reply_markup=scale_keyboard(c["key"], day))
 
 
 async def on_checkin_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -70,8 +71,9 @@ async def on_checkin_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not parsed:
         await q.answer("inválido")
         return
-    key, val = parsed
-    save_checkin(context.bot_data["db"], {key: val})
+    key, val, day = parsed
+    # grava sempre no dia do check-in (vindo no callback), não no dia do clique
+    save_checkin(context.bot_data["db"], {key: val}, today=dt.date.fromisoformat(day))
     label = next((c["label"] for c in CHECKINS if c["key"] == key), key)
     await q.answer("anotado")
     await q.edit_message_text(f"{label}: {val} ✓")

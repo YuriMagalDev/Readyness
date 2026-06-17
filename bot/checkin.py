@@ -9,17 +9,20 @@ CHECKINS = [
 _BY_KEY = {c["key"]: c for c in CHECKINS}
 
 
-def scale_keyboard(key: str) -> InlineKeyboardMarkup:
-    row = [InlineKeyboardButton(str(n), callback_data=f"ci:{key}:{n}") for n in range(1, 6)]
+def scale_keyboard(key: str, day: str) -> InlineKeyboardMarkup:
+    """Teclado 1–5. `day` (YYYY-MM-DD) viaja no callback pra resposta gravar
+    sempre no dia do check-in, mesmo que respondida após a meia-noite."""
+    row = [InlineKeyboardButton(str(n), callback_data=f"ci:{key}:{n}:{day}") for n in range(1, 6)]
     return InlineKeyboardMarkup([row])
 
 
 def parse_callback(data: str):
+    """'ci:<key>:<n>:<YYYY-MM-DD>' -> (key, n, day) ou None."""
     parts = (data or "").split(":")
-    if len(parts) != 3 or parts[0] != "ci":
+    if len(parts) != 4 or parts[0] != "ci":
         return None
     try:
-        return parts[1], int(parts[2])
+        return parts[1], int(parts[2]), parts[3]
     except ValueError:
         return None
 

@@ -65,6 +65,6 @@ async def job_checkin(context: ContextTypes.DEFAULT_TYPE):
         return
     for c in CHECKINS:
         await context.bot.send_message(
-            chat_id=cfg.chat_id, text=prompt_text(c), reply_markup=scale_keyboard(c["key"])
+            chat_id=cfg.chat_id, text=prompt_text(c), reply_markup=scale_keyboard(c["key"], day)
         )
     mark_checkin_prompted(db, day)
