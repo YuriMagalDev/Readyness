@@ -6,6 +6,9 @@ from bot.state import already_sent_saldo, mark_saldo_sent, already_prompted_chec
 from bot.wake_detector import wake_time_local
 from bot.checkin import CHECKINS, scale_keyboard, prompt_text
 from src.ingestor import Ingestor
+from bot.runs import filter_runs
+from src.services_core import build_run_detail
+from src.extractors import activity_from_garmin
 
 
 def _now_time():
@@ -65,3 +68,38 @@ async def job_checkin(context: ContextTypes.DEFAULT_TYPE):
             chat_id=cfg.chat_id, text=prompt_text(c), reply_markup=scale_keyboard(c["key"], day)
         )
     mark_checkin_prompted(db, day)
+
+
+_RUNS_SEEDED = "runs_seeded"
+
+
+async def job_runs(context: ContextTypes.DEFAULT_TYPE):
+    """A cada 15min: detecta corrida nova no Garmin e manda o insight. 1ª passada seeda
+    o histórico (marca como visto sem enviar) pra não spammar corridas antigas no deploy."""
+    cfg = context.bot_data["cfg"]
+    db = context.bot_data["db"]
+    client = context.bot_data["client"]
+    try:
+        runs = filter_runs(client.get_activities(2))  # ~últimas 48h
+    except Exception:  # noqa: BLE001 — Garmin 429/fora: tenta no próximo ciclo
+        return
+    seeded = db.get_state(_RUNS_SEEDED) == "1"
+    for raw in runs:
+        aid = raw.get("activityId")
+        if aid is None or db.is_notified(aid):
+            continue
+        if not seeded:
+            db.mark_notified(aid)          # seed silencioso
+            continue
+        db.upsert_activity(activity_from_garmin(raw))  # garante row pro build_run_detail
+        try:
+            detail = build_run_detail(db, client, aid)
+        except Exception:  # noqa: BLE001 — splits/IA falhou: tenta depois, não marca
+            continue
+        await context.bot.send_message(
+            chat_id=cfg.chat_id, text=messages.format_activity(detail["activity"], detail["insight"]),
+            parse_mode=messages.PARSE_MODE,
+        )
+        db.mark_notified(aid)
+    if not seeded:
+        db.set_state(_RUNS_SEEDED, "1")
