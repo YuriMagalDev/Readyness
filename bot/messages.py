@@ -110,3 +110,35 @@ def format_insights(insights: list) -> str:
             bloco += f"\n   fontes: {fontes}"
         blocos.append(bloco)
     return "\n\n".join(blocos)
+
+
+def _fmt_clock(minutes) -> str:
+    """Minutos decimais -> 'M:SS' ou 'H:MM:SS'. None -> '—'."""
+    if minutes is None:
+        return "—"
+    total = round(minutes * 60)
+    h, rem = divmod(total, 3600)
+    m, s = divmod(rem, 60)
+    return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
+
+
+def _fmt_pace(min_per_km) -> str:
+    """Min/km decimal -> 'M:SS'. None -> '—'."""
+    if min_per_km is None:
+        return "—"
+    total = round(min_per_km * 60)
+    return f"{total // 60}:{total % 60:02d}"
+
+
+def format_activity(activity: dict, insight: str) -> str:
+    """Cabeçalho (nome · distância · tempo · pace · FC) + insight da IA. HTML."""
+    nome = _e(activity.get("name") or "Corrida")
+    dist = activity.get("distance_m")
+    km = f"{dist / 1000:.2f} km" if dist else "—"
+    tempo = _fmt_clock(activity.get("duration_min"))
+    pace = activity.get("pace_min_km")
+    pace_s = f"{_fmt_pace(pace)} /km" if pace else "—"
+    hr = activity.get("avg_hr")
+    hr_s = f"{round(hr)} bpm" if hr else "—"
+    head = f"🏃 <b>{nome}</b>\n{km} · {tempo} · {pace_s} · ❤️ {hr_s}"
+    return f"{head}\n{_RULE}\n{_e(insight)}"
