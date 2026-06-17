@@ -72,6 +72,10 @@ class HistoryDB:
                 "CREATE TABLE IF NOT EXISTS bot_state ("
                 "key TEXT PRIMARY KEY, value TEXT)"
             )
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS notified_activity ("
+                "activity_id INTEGER PRIMARY KEY, sent_at TEXT)"
+            )
 
     @staticmethod
     def _add_missing_columns(conn, table: str, columns: list, type_for):
@@ -124,6 +128,21 @@ class HistoryDB:
                 "SELECT * FROM activity WHERE activity_id = ?", (activity_id,)
             ).fetchone()
         return dict(row) if row else None
+
+    def is_notified(self, activity_id: int) -> bool:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT 1 FROM notified_activity WHERE activity_id = ?", (activity_id,)
+            ).fetchone()
+        return row is not None
+
+    def mark_notified(self, activity_id: int):
+        import datetime as _dt
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO notified_activity (activity_id, sent_at) VALUES (?, ?)",
+                (activity_id, _dt.datetime.now().isoformat(timespec="seconds")),
+            )
 
     def upsert_plan(self, week_start: str, plan: dict, created_at: str):
         import json as _json
