@@ -128,7 +128,7 @@ def test_build_activity_detail_fetches_splits_if_missing():
     client.get_activity_splits.return_value = {"lapDTOs": [
         {"distance": 1000, "duration": 300, "averageSpeed": 3.33, "averageHR": 150, "averageRunCadence": 160}
     ]}
-    with patch("api.services.InsightEngine") as MockEng:
+    with patch("src.services_core.InsightEngine") as MockEng:
         MockEng.return_value.activity_insight.return_value = "bom pace"
         payload = services.build_activity_detail(db, client, 1)
     assert payload["splits"][0]["distance_m"] == 1000

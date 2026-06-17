@@ -1,5 +1,4 @@
 """Monta payloads JSON-ready a partir do backend src/. Sem lógica de negócio nova."""
-import json as _json
 import datetime as _dt
 from datetime import date, timedelta
 
@@ -10,9 +9,8 @@ from src.health_monitor import HealthMonitor
 from src.training_planner import TrainingPlanner
 from src.analytics import Analytics
 from src.insight_engine import InsightEngine
-from src.extractors import splits_from_garmin
 from src.plan_tracker import week_start_of, match_plan
-from src.services_core import save_checkin, build_trends, _period_range  # noqa: F401
+from src.services_core import save_checkin, build_trends, build_run_detail, _period_range  # noqa: F401
 
 
 def _load_context(client):
@@ -212,18 +210,7 @@ def build_activities(db, period: int = 30) -> list:
 
 
 def build_activity_detail(db, client, activity_id: int) -> dict:
-    act = db.get_activity(activity_id)
-    if act is None:
-        raise ValueError(f"Atividade {activity_id} não encontrada")
-    if act.get("splits_json"):
-        splits = _json.loads(act["splits_json"])
-    else:
-        raw = client.get_activity_splits(activity_id)
-        splits = splits_from_garmin(raw)
-        act["splits_json"] = _json.dumps(splits)
-        db.upsert_activity(act)
-    insight = InsightEngine(db=db).activity_insight(act, splits)
-    return {"activity": act, "splits": splits, "insight": insight}
+    return build_run_detail(db, client, activity_id)
 
 
 def build_metrics(db, date: str, today: _dt.date = None) -> dict:
