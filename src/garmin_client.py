@@ -20,9 +20,12 @@ class GarminClient:
         password = os.getenv("GARMIN_PASSWORD")
         if not email or not password:
             raise ValueError("GARMIN_EMAIL and GARMIN_PASSWORD must be set in .env")
+        # tokenstore: loga só 1x e reusa o token salvo nos próximos starts (evita
+        # 429 de login). Caminho persiste entre reinícios/boot da VM.
+        self._tokenstore = os.getenv("GARMINTOKENS") or os.path.expanduser("~/.garminconnect")
         try:
             client = Garmin(email, password)
-            client.login()
+            client.login(self._tokenstore)
             return client
         except GarminConnectAuthenticationError as e:
             raise RuntimeError(f"Garmin auth failed: {e}") from e
@@ -34,7 +37,7 @@ class GarminClient:
         try:
             data = fetch_fn()
         except GarminConnectAuthenticationError:
-            self._client.login()
+            self._client.login(getattr(self, "_tokenstore", None))
             data = fetch_fn()
         except GarminConnectTooManyRequestsError as e:
             raise RuntimeError("Garmin rate limit hit — try again later") from e
