@@ -29,11 +29,14 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("semana", handlers.cmd_semana))
     app.add_handler(CommandHandler("mes", handlers.cmd_mes))
     app.add_handler(CallbackQueryHandler(handlers.on_checkin_button, pattern=r"^ci:"))
+    app.add_handler(CommandHandler("atividades", handlers.cmd_atividades))
+    app.add_handler(CallbackQueryHandler(handlers.on_activity_button, pattern=r"^act:"))
 
     jq = app.job_queue
     for (h, m) in cfg.morning_slots:
         jq.run_daily(jobs.job_morning, time=dt.time(hour=h, minute=m, tzinfo=TZ))
     jq.run_daily(jobs.job_checkin, time=dt.time(hour=cfg.checkin_hour, minute=0, tzinfo=TZ))
+    jq.run_repeating(jobs.job_runs, interval=15 * 60, first=30)
     return app
 
 
