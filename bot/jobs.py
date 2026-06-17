@@ -32,28 +32,25 @@ async def _send_saldo(context, day, wake):
     mark_saldo_sent(db, day)
 
 
-async def job_wake(context: ContextTypes.DEFAULT_TYPE):
-    """Roda a cada N min na janela matinal. Envia o saldo 1x ao detectar acordar."""
+async def job_morning(context: ContextTypes.DEFAULT_TYPE):
+    """Roda em cada slot fixo (ex.: 09:30, 12:00, 14:00). Manda o saldo 1x ao detectar
+    que o sono já sincronizou; no último slot manda mesmo sem sincronizar (fallback)."""
     cfg = context.bot_data["cfg"]
     db = context.bot_data["db"]
     client = context.bot_data["client"]
     day = dt.date.today().isoformat()
     if already_sent_saldo(db, day):
         return
-    start = dt.time(*cfg.wake_start)
-    end = dt.time(*cfg.wake_end)
-    now = _now_time()
-    if now < start:
-        return  # antes da janela: não consulta Garmin ainda
     try:
         sleep_day = client.get_sleep_day(day)
     except Exception:  # noqa: BLE001
         sleep_day = None
     wake = wake_time_local(sleep_day)
+    last = dt.time(*cfg.morning_slots[-1]) if cfg.morning_slots else dt.time(14, 0)
     if wake:
         await _send_saldo(context, day, wake)
-    elif now >= end:
-        # fim da janela sem detectar acordar: manda com o que tiver
+    elif _now_time() >= last:
+        # último slot e o sono ainda não sincronizou: manda com o que tiver
         await _send_saldo(context, day, None)
 
 

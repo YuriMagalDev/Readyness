@@ -25,7 +25,8 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(handlers.on_checkin_button, pattern=r"^ci:"))
 
     jq = app.job_queue
-    jq.run_repeating(jobs.job_wake, interval=cfg.wake_poll_minutes * 60, first=10)
+    for (h, m) in cfg.morning_slots:
+        jq.run_daily(jobs.job_morning, time=dt.time(hour=h, minute=m))
     jq.run_daily(jobs.job_checkin, time=dt.time(hour=cfg.checkin_hour, minute=0))
     return app
 

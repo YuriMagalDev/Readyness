@@ -31,12 +31,15 @@ async def cmd_saldo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db = context.bot_data["db"]
     client = context.bot_data["client"]
     day = dt.date.today().isoformat()
+    # métricas/sono dependem do Garmin (pode 429 / sem sync); veredito vem do DB e sempre sai
     try:
         ctx = core.load_context(client)
+        met, sleep = core.collect_metrics(ctx), core.sleep_view(ctx)
+    except Exception:  # noqa: BLE001
+        met, sleep = {}, {}
+    try:
         analysis = core.daily_analysis(db, day)
-        txt = messages.format_saldo(
-            analysis["veredito"], core.collect_metrics(ctx), sleep=core.sleep_view(ctx)
-        )
+        txt = messages.format_saldo(analysis["veredito"], met, sleep=sleep)
         await update.message.reply_text(txt, parse_mode=messages.PARSE_MODE)
     except Exception as e:  # noqa: BLE001
         await update.message.reply_text(f"Não consegui montar o saldo agora ({e}).")

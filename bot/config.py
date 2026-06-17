@@ -6,8 +6,12 @@ load_dotenv()
 
 
 def _hm(s: str) -> tuple:
-    h, m = s.split(":")
+    h, m = s.strip().split(":")
     return int(h), int(m)
+
+
+def _slots(s: str) -> tuple:
+    return tuple(_hm(p) for p in s.split(",") if p.strip())
 
 
 @dataclass
@@ -15,9 +19,7 @@ class Config:
     token: str
     chat_id: int
     checkin_hour: int
-    wake_start: tuple
-    wake_end: tuple
-    wake_poll_minutes: int
+    morning_slots: tuple  # ((h, m), ...) horários de tentativa do saldo; o último é o final
     db_path: str
 
     @classmethod
@@ -30,8 +32,6 @@ class Config:
             token=token,
             chat_id=int(chat),
             checkin_hour=int(os.getenv("CHECKIN_HOUR", "21")),
-            wake_start=_hm(os.getenv("WAKE_WINDOW_START", "05:00")),
-            wake_end=_hm(os.getenv("WAKE_WINDOW_END", "11:00")),
-            wake_poll_minutes=int(os.getenv("WAKE_POLL_MINUTES", "15")),
+            morning_slots=_slots(os.getenv("MORNING_SLOTS", "09:30,12:00,14:00")),
             db_path=os.getenv("DB_PATH", "history.db"),
         )

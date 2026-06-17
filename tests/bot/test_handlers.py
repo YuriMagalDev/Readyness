@@ -7,7 +7,7 @@ from bot import handlers
 
 def _cfg():
     return Config(token="t", chat_id=99, checkin_hour=21,
-                  wake_start=(5, 0), wake_end=(11, 0), wake_poll_minutes=15, db_path=":memory:")
+                  morning_slots=((9, 30), (12, 0), (14, 0)), db_path=":memory:")
 
 def _ctx(db):
     ctx = MagicMock()
@@ -21,6 +21,25 @@ async def test_guarda_ignora_outro_chat():
     update.message.reply_text = AsyncMock()
     await handlers.cmd_start(update, _ctx(MagicMock()))
     update.message.reply_text.assert_not_called()
+
+@pytest.mark.asyncio
+async def test_cmd_saldo_degrada_quando_garmin_falha(monkeypatch):
+    # Garmin 429 (load_context lança): manda o veredito do DB, não a msg de erro
+    update = MagicMock()
+    update.effective_chat.id = 99
+    update.message.reply_text = AsyncMock()
+
+    def _boom(c):
+        raise TypeError("garmin 429")
+
+    monkeypatch.setattr(handlers.core, "load_context", _boom)
+    monkeypatch.setattr(handlers.core, "daily_analysis", lambda db, day: {
+        "veredito": {"status": "verde", "motivo": "m", "recomendacao": "r"}, "insights": []})
+    await handlers.cmd_saldo(update, _ctx(MagicMock()))
+    update.message.reply_text.assert_awaited_once()
+    enviado = update.message.reply_text.await_args.args[0]
+    assert "Não consegui" not in enviado  # degradou, não falhou
+
 
 @pytest.mark.asyncio
 async def test_callback_checkin_grava_no_dia_do_checkin(tmp_path):
