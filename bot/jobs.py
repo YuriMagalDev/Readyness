@@ -1,7 +1,10 @@
 import datetime as dt
+import logging
 from telegram.ext import ContextTypes
 
 from bot import core, messages
+
+_log = logging.getLogger(__name__)
 from bot.state import already_sent_saldo, mark_saldo_sent, already_prompted_checkin, mark_checkin_prompted
 from bot.wake_detector import wake_time_local
 from bot.checkin import CHECKINS, scale_keyboard, prompt_text
@@ -81,7 +84,8 @@ async def job_runs(context: ContextTypes.DEFAULT_TYPE):
     client = context.bot_data["client"]
     try:
         runs = filter_runs(client.get_activities(2, fresh=True))  # ~últimas 48h
-    except Exception:  # noqa: BLE001 — Garmin 429/fora: tenta no próximo ciclo
+    except Exception as e:  # noqa: BLE001 — Garmin 429/fora: tenta no próximo ciclo
+        _log.warning("job_runs: falha ao buscar atividades: %s", e)
         return
     seeded = db.get_state(_RUNS_SEEDED) == "1"
     for raw in runs:
@@ -94,7 +98,8 @@ async def job_runs(context: ContextTypes.DEFAULT_TYPE):
         db.upsert_activity(activity_from_garmin(raw))  # garante row pro build_run_detail
         try:
             detail = build_run_detail(db, client, aid)
-        except Exception:  # noqa: BLE001 — splits/IA falhou: tenta depois, não marca
+        except Exception as e:  # noqa: BLE001 — splits/IA falhou: tenta depois, não marca
+            _log.warning("job_runs: falha ao montar insight da corrida %s: %s", aid, e)
             continue
         await context.bot.send_message(
             chat_id=cfg.chat_id, text=messages.format_activity(detail["activity"], detail["insight"]),
