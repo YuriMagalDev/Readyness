@@ -68,3 +68,68 @@ def _deduction_battery(b):
     else:
         return 0, None
     return d, _fator("body_battery", "Body Battery", b, d)
+
+
+VERDE_MIN, AMARELO_MIN = 70, 40
+
+_RECOMENDACAO = {
+    "verde": "Pode treinar conforme planejado.",
+    "amarelo": "Treino leve ou moderado; evite intensidade alta.",
+    "vermelho": "Priorize recuperação. Evite treino intenso.",
+}
+
+
+def _status_por_score(score):
+    if score >= VERDE_MIN:
+        return "verde"
+    if score >= AMARELO_MIN:
+        return "amarelo"
+    return "vermelho"
+
+
+def _is_overreaching(context):
+    today = context.get("resting_hr_today")
+    baseline = context.get("resting_hr_baseline")
+    soreness = context.get("soreness")
+    acwr = context.get("acwr")
+    if today is None or baseline is None or soreness is None or acwr is None:
+        return False
+    return (today - baseline) > 5 and acwr_zone(acwr) == "risco" and soreness >= 4
+
+
+def compute_readiness(context: dict) -> dict:
+    """Veredito determinístico por score 0-100 + fatores citados."""
+    pares = [
+        _deduction_acwr(context.get("acwr")),
+        _deduction_hr(context.get("resting_hr_today"), context.get("resting_hr_baseline")),
+        _deduction_soreness(context.get("soreness")),
+        _deduction_sleep(context.get("sleep_debt_hours", 0)),
+        _deduction_energia(context.get("energia")),
+        _deduction_battery(context.get("morning_battery_avg")),
+    ]
+    fatores = [f for d, f in pares if f is not None]
+    fatores.sort(key=lambda f: f["desconto"], reverse=True)
+    total = sum(d for d, _ in pares)
+    score = max(0, min(100, 100 - total))
+    status = _status_por_score(score)
+
+    if not fatores:
+        motivo = "Métricas normais"
+    else:
+        motivo = "; ".join(f"{f['label'].lower()} {f['valor']}" for f in fatores[:3])
+
+    recomendacao = _RECOMENDACAO[status]
+    overreaching = _is_overreaching(context)
+    if overreaching:
+        status = "vermelho"
+        motivo = "possível overreaching: FC acima da base, carga em risco e dor alta"
+        recomendacao = "Descanso. 3 sinais de sobrecarga juntos."
+
+    return {
+        "status": status,
+        "score": score,
+        "motivo": motivo,
+        "recomendacao": recomendacao,
+        "overreaching": overreaching,
+        "fatores": fatores,
+    }
