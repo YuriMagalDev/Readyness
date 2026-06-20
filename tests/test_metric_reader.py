@@ -55,3 +55,18 @@ def test_context_from_metrics_computes_hr_avg_and_debt():
     assert ctx["sleep_debt_hours"] == 7.0
     assert ctx["morning_battery_avg"] == 80
     assert ctx["run_sessions_7d"] == 1
+
+
+def test_context_inclui_sinais_novos(tmp_path):
+    import datetime
+    from src.history_db import HistoryDB
+    from src.metric_reader import context_from_metrics
+    db = HistoryDB(str(tmp_path / "c.db"))
+    db.upsert_metric("2026-06-20", "acwr", 1.4, "2026-06-20T10:00:00", "computed")
+    db.upsert_metric("2026-06-20", "soreness", 3, "2026-06-20T07:00:00", "manual")
+    db.upsert_metric("2026-06-20", "resting_hr_baseline", 51.0, "2026-06-20T08:00:00", "computed")
+    ctx = context_from_metrics(db, "2026-06-20", today=datetime.date(2026, 6, 20))
+    assert ctx["acwr"] == 1.4
+    assert ctx["soreness"] == 3
+    assert ctx["resting_hr_baseline"] == 51.0
+    assert ctx["energia"] is None        # ausente -> None

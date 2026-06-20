@@ -57,10 +57,16 @@ def context_from_metrics(db, date: str, today: _dt.date = None) -> dict:
     acts = db.get_activities(week_start, date)
     runs = sum(1 for a in acts if not a.get("is_strength") and a.get("type") in RUN_TYPES)
 
+    day_metrics = {r["metric_key"]: r["value"] for r in db.get_metrics(date)}
+
     return {
         "resting_hr_today": hr_today,
         "resting_hr_avg_7d": hr_avg,
         "sleep_debt_hours": round(debt, 1),
         "morning_battery_avg": battery,
         "run_sessions_7d": runs,
+        "acwr": day_metrics.get("acwr"),
+        "soreness": day_metrics.get("soreness"),
+        "energia": day_metrics.get("energia"),
+        "resting_hr_baseline": day_metrics.get("resting_hr_baseline"),
     }
