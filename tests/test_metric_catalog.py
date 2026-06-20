@@ -1,4 +1,6 @@
-from src.metric_catalog import CATALOG, MetricSpec, CADENCE_WINDOW_DAYS, by_domain
+from src.metric_catalog import CATALOG, CATALOG_BY_KEY, MetricSpec, CADENCE_WINDOW_DAYS, by_domain
+from src.metric_status import compute_status
+import datetime
 
 
 def test_catalog_keys_unique():
@@ -37,3 +39,16 @@ def test_checkins_are_manual():
 
 def test_cadence_windows():
     assert CADENCE_WINDOW_DAYS == {"diaria": 0, "corpo": 7, "fitness": 14}
+
+
+def test_metricas_de_carga_no_catalogo():
+    for key in ("acwr", "training_monotony", "resting_hr_baseline"):
+        assert key in CATALOG_BY_KEY
+        assert CATALOG_BY_KEY[key].source_default == "computed"
+
+
+def test_computed_fresco_no_dia():
+    spec = CATALOG_BY_KEY["acwr"]
+    status = compute_status(spec.cadencia, "computed",
+                            "2026-06-20T10:00:00", datetime.date(2026, 6, 20))
+    assert status == "fresco"

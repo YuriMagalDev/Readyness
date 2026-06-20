@@ -51,6 +51,10 @@ CATALOG = [
     MetricSpec("energia", "Energia/disposição", "", "checkin", "diaria", "manual"),
     MetricSpec("soreness", "Dor muscular", "", "checkin", "diaria", "manual"),
     MetricSpec("alimentacao", "Qualidade alimentação", "", "checkin", "diaria", "manual"),
+    # Carga / tendência (computadas — sub-projeto 1)
+    MetricSpec("acwr", "Carga aguda:crônica", "", "prontidao", "diaria", "computed"),
+    MetricSpec("training_monotony", "Monotonia", "", "prontidao", "diaria", "computed"),
+    MetricSpec("resting_hr_baseline", "FC repouso (base 30d)", " bpm", "recuperacao", "diaria", "computed"),
 ]
 
 CATALOG_BY_KEY = {m.key: m for m in CATALOG}
