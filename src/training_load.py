@@ -1,4 +1,5 @@
 import math
+import datetime as _dt
 
 
 def session_trimp(activity: dict, hr_rest: float, hr_max: float) -> tuple[float, bool]:
@@ -41,3 +42,16 @@ def daily_load_series(activities: list, hr_rest_by_date: dict,
         carga, _ = session_trimp(a, hr_rest, hr_max)
         series[d] = series.get(d, 0.0) + carga
     return series
+
+
+def ewma(series_by_date: dict, end_date: str, tau_days: int, span_days: int) -> float:
+    end = _dt.date.fromisoformat(end_date)
+    alpha = 2.0 / (tau_days + 1)
+    loads = []
+    for i in range(span_days - 1, -1, -1):  # antigo -> novo
+        d = (end - _dt.timedelta(days=i)).isoformat()
+        loads.append(series_by_date.get(d, 0.0))
+    val = loads[0]
+    for x in loads[1:]:
+        val = alpha * x + (1 - alpha) * val
+    return val

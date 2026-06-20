@@ -1,6 +1,6 @@
 import math
 import pytest
-from src.training_load import session_trimp, estimate_hr_max, daily_load_series, RUN_TYPES
+from src.training_load import session_trimp, estimate_hr_max, daily_load_series, RUN_TYPES, ewma
 
 
 def test_trimp_com_fc_conhecida():
@@ -65,3 +65,21 @@ def test_daily_load_agrupa_e_ignora_musculacao():
 def test_run_types_exclui_cardio():
     assert "running" in RUN_TYPES
     assert "indoor_cardio" not in RUN_TYPES
+
+
+def test_ewma_serie_constante_retorna_constante():
+    series = {"2026-06-18": 5.0, "2026-06-19": 5.0, "2026-06-20": 5.0}
+    assert ewma(series, "2026-06-20", tau_days=1, span_days=3) == pytest.approx(5.0)
+
+
+def test_ewma_preenche_faltantes_com_zero():
+    # span 3 dias terminando em 06-20; só 06-20 tem 10; α=2/(1+1)=1.0
+    # loads (antigo->novo) = [0, 0, 10]; α=1 => ewma = último = 10
+    series = {"2026-06-20": 10.0}
+    assert ewma(series, "2026-06-20", tau_days=1, span_days=3) == pytest.approx(10.0)
+
+
+def test_ewma_alpha_meio():
+    # α=2/(3+1)=0.5; loads=[0,0,10] -> 0; 0; 0.5*10+0.5*0=5.0
+    series = {"2026-06-20": 10.0}
+    assert ewma(series, "2026-06-20", tau_days=3, span_days=3) == pytest.approx(5.0)
