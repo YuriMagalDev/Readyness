@@ -19,9 +19,11 @@ def session_trimp(activity: dict, hr_rest: float, hr_max: float) -> tuple[float,
 
 
 def estimate_hr_max(activities: list, idade: int) -> int:
-    """Estima FC máxima: maior observada se ≥ Tanaka, senão Tanaka."""
+    """Estima FC máxima: maior observada em corridas se ≥ Tanaka, senão Tanaka."""
     tanaka = round(208 - 0.7 * idade)
-    observados = [a.get("max_hr") for a in activities if a.get("max_hr")]
+    observados = [a.get("max_hr") for a in activities
+                  if a.get("max_hr") and not a.get("is_strength")
+                  and a.get("type") in RUN_TYPES]
     if observados:
         return max(max(observados), tanaka)
     return tanaka

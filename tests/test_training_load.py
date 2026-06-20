@@ -35,17 +35,27 @@ def test_trimp_sem_duracao_zero_estimado():
 
 
 def test_hr_max_usa_observada_quando_maior():
-    acts = [{"max_hr": 195}, {"max_hr": 188}, {"max_hr": None}]
+    acts = [{"max_hr": 195, "type": "running", "is_strength": 0},
+            {"max_hr": 188, "type": "running", "is_strength": 0},
+            {"max_hr": None, "type": "running", "is_strength": 0}]
     assert estimate_hr_max(acts, idade=25) == 195
 
 
 def test_hr_max_usa_tanaka_quando_observada_menor():
-    acts = [{"max_hr": 150}]
+    acts = [{"max_hr": 150, "type": "running", "is_strength": 0}]
     assert estimate_hr_max(acts, idade=25) == 190  # 208 - 0.7*25 = 190.5 -> 190
 
 
 def test_hr_max_sem_atividades_usa_tanaka():
     assert estimate_hr_max([], idade=25) == 190
+
+
+def test_hr_max_ignora_atividade_nao_corrida():
+    # FC altíssima em cardio de academia NÃO deve inflar FCmax
+    acts = [{"max_hr": 250, "type": "indoor_cardio", "is_strength": 1},
+            {"max_hr": 188, "type": "running", "is_strength": 0}]
+    # 250 ignorado; 188 < Tanaka(190) → retorna Tanaka
+    assert estimate_hr_max(acts, idade=25) == 190
 
 
 def test_daily_load_agrupa_e_ignora_musculacao():
@@ -97,7 +107,7 @@ def test_acwr_zonas_nos_limiares():
 def test_acwr_serie_constante_da_um():
     # carga igual todo dia -> agudo == cronico -> razão 1.0
     series = {(_dt_date(2026, 6, 20) - _td(days=i)).isoformat(): 10.0 for i in range(28)}
-    ratio, zona = acwr("placeholder", "2026-06-20") if False else acwr(series, "2026-06-20")
+    ratio, zona = acwr(series, "2026-06-20")
     assert ratio == pytest.approx(1.0, abs=0.01)
     assert zona == "otimo"
 
@@ -114,12 +124,26 @@ def test_monotony_carga_constante_none():
 
 
 def test_monotony_serie_alternada():
-    # loads dos 7 dias = [10,0,10,0,10,0,10] (06-20 mais novo); mean=50/7~7.14, stdev~6.17
+    # loads dos 7 dias = [10,0,10,0,10,0,10] (06-20 mais novo); mean=40/7~5.71, pstdev~4.95
     series = {}
     for i in range(7):
         d = (_dt_date(2026, 6, 20) - _td(days=i)).isoformat()
         series[d] = 10.0 if i % 2 == 0 else 0.0
     assert monotony(series, "2026-06-20") == pytest.approx(1.155, abs=0.01)
+
+
+def test_acwr_carga_crescente_ratio_maior_que_um():
+    # Dias 27..7 atrás: carga baixa (5); dias 6..0 atrás: carga alta (50)
+    # → agudo >> crônico → ratio > 1.0
+    end = _dt_date(2026, 6, 20)
+    series = {}
+    for i in range(28):
+        d = (end - _td(days=i)).isoformat()
+        series[d] = 50.0 if i <= 6 else 5.0
+    ratio, zona = acwr(series, "2026-06-20")
+    assert ratio is not None
+    assert ratio > 1.0
+    assert zona in ("otimo", "risco")
 
 
 def test_baseline_media_e_desvio():

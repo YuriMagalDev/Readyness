@@ -101,12 +101,14 @@ class Ingestor:
     def _write_load_metrics(self, day: str) -> None:
         start28 = (_dt.date.fromisoformat(day) - _dt.timedelta(days=27)).isoformat()
         start30 = (_dt.date.fromisoformat(day) - _dt.timedelta(days=29)).isoformat()
+        start90 = (_dt.date.fromisoformat(day) - _dt.timedelta(days=89)).isoformat()
         acts = self._db.get_activities(start28, day)
+        acts90 = self._db.get_activities(start90, day)
         hr_rows = self._db.get_metric_series("resting_hr", start30, day)
         hr_rest_by_date = {r["date"]: r["value"] for r in hr_rows if r["value"] is not None}
         rests = list(hr_rest_by_date.values())
         default_rest = sum(rests) / len(rests) if rests else 60.0
-        hr_max = estimate_hr_max(acts, self._idade())
+        hr_max = estimate_hr_max(acts90, self._idade())
         series = daily_load_series(acts, hr_rest_by_date, hr_max, default_rest)
 
         now = _dt.datetime.now().isoformat(timespec="seconds")
