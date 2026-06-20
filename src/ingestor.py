@@ -1,8 +1,13 @@
 import datetime
+import json
+import os
 import time
 import datetime as _dt
 
 from src.extractors import snapshot_from_garmin, activity_from_garmin
+from src.training_load import (
+    estimate_hr_max, daily_load_series, acwr, monotony, resting_hr_baseline,
+)
 from src.collectors.recuperacao import normalize_recuperacao
 from src.collectors.atividade import normalize_atividade
 from src.collectors.prontidao import normalize_prontidao
@@ -61,6 +66,8 @@ class Ingestor:
 
         # metric_value via coletores
         self._write_metrics(day, summary, race)
+        # camada de carga/tendência (computada do que já está no DB)
+        self._write_load_metrics(day)
 
     def _write_metrics(self, day: str, summary, race):
         sleep_one = self._safe_call(lambda: self._client.get_sleep_day(day)) or {}
@@ -81,6 +88,37 @@ class Ingestor:
         for r in rows:
             self._db.upsert_metric(day, r["metric_key"], r["value"],
                                    r["measured_at"], r["source"])
+
+    @staticmethod
+    def _idade(default: int = 30) -> int:
+        path = os.getenv("ATHLETE_PROFILE") or "athlete_profile.json"
+        try:
+            with open(path, encoding="utf-8") as f:
+                return int(json.load(f).get("idade") or default)
+        except Exception:  # noqa: BLE001 — perfil ausente: usa default p/ não quebrar ingestão
+            return default
+
+    def _write_load_metrics(self, day: str) -> None:
+        start28 = (_dt.date.fromisoformat(day) - _dt.timedelta(days=27)).isoformat()
+        start30 = (_dt.date.fromisoformat(day) - _dt.timedelta(days=29)).isoformat()
+        acts = self._db.get_activities(start28, day)
+        hr_rows = self._db.get_metric_series("resting_hr", start30, day)
+        hr_rest_by_date = {r["date"]: r["value"] for r in hr_rows if r["value"] is not None}
+        rests = list(hr_rest_by_date.values())
+        default_rest = sum(rests) / len(rests) if rests else 60.0
+        hr_max = estimate_hr_max(acts, self._idade())
+        series = daily_load_series(acts, hr_rest_by_date, hr_max, default_rest)
+
+        now = _dt.datetime.now().isoformat(timespec="seconds")
+        ratio, _zone = acwr(series, day)
+        if ratio is not None:
+            self._db.upsert_metric(day, "acwr", round(ratio, 2), now, "computed")
+        mono = monotony(series, day)
+        if mono is not None:
+            self._db.upsert_metric(day, "training_monotony", round(mono, 2), now, "computed")
+        base, _desvio = resting_hr_baseline(hr_rows, day)
+        if base is not None:
+            self._db.upsert_metric(day, "resting_hr_baseline", round(base, 1), now, "computed")
 
     @staticmethod
     def _safe_call(fn):
