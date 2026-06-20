@@ -1,7 +1,7 @@
 import math
 import pytest
 from datetime import date as _dt_date, timedelta as _td
-from src.training_load import session_trimp, estimate_hr_max, daily_load_series, RUN_TYPES, ewma, acwr, acwr_zone
+from src.training_load import session_trimp, estimate_hr_max, daily_load_series, RUN_TYPES, ewma, acwr, acwr_zone, monotony
 
 
 def test_trimp_com_fc_conhecida():
@@ -106,3 +106,17 @@ def test_acwr_sem_cronico_ausente():
     ratio, zona = acwr({}, "2026-06-20")
     assert ratio is None
     assert zona == "ausente"
+
+
+def test_monotony_carga_constante_none():
+    series = {(_dt_date(2026, 6, 20) - _td(days=i)).isoformat(): 10.0 for i in range(7)}
+    assert monotony(series, "2026-06-20") is None
+
+
+def test_monotony_serie_alternada():
+    # loads dos 7 dias = [10,0,10,0,10,0,10] (06-20 mais novo); mean=50/7~7.14, stdev~6.17
+    series = {}
+    for i in range(7):
+        d = (_dt_date(2026, 6, 20) - _td(days=i)).isoformat()
+        series[d] = 10.0 if i % 2 == 0 else 0.0
+    assert monotony(series, "2026-06-20") == pytest.approx(1.155, abs=0.01)

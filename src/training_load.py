@@ -1,5 +1,6 @@
 import math
 import datetime as _dt
+import statistics
 
 
 def session_trimp(activity: dict, hr_rest: float, hr_max: float) -> tuple[float, bool]:
@@ -74,3 +75,13 @@ def acwr(series_by_date: dict, end_date: str) -> tuple:
         return None, "ausente"
     ratio = agudo / cronico
     return ratio, acwr_zone(ratio)
+
+
+def monotony(series_by_date: dict, end_date: str) -> float | None:
+    end = _dt.date.fromisoformat(end_date)
+    loads = [series_by_date.get((end - _dt.timedelta(days=i)).isoformat(), 0.0)
+             for i in range(7)]
+    desvio = statistics.pstdev(loads)
+    if desvio == 0:
+        return None
+    return statistics.mean(loads) / desvio
