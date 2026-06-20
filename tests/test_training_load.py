@@ -1,6 +1,7 @@
 import math
 import pytest
-from src.training_load import session_trimp, estimate_hr_max, daily_load_series, RUN_TYPES, ewma
+from datetime import date as _dt_date, timedelta as _td
+from src.training_load import session_trimp, estimate_hr_max, daily_load_series, RUN_TYPES, ewma, acwr, acwr_zone
 
 
 def test_trimp_com_fc_conhecida():
@@ -83,3 +84,25 @@ def test_ewma_alpha_meio():
     # α=2/(3+1)=0.5; loads=[0,0,10] -> 0; 0; 0.5*10+0.5*0=5.0
     series = {"2026-06-20": 10.0}
     assert ewma(series, "2026-06-20", tau_days=3, span_days=3) == pytest.approx(5.0)
+
+
+def test_acwr_zonas_nos_limiares():
+    assert acwr_zone(None) == "ausente"
+    assert acwr_zone(0.79) == "baixo"
+    assert acwr_zone(0.8) == "otimo"
+    assert acwr_zone(1.5) == "otimo"
+    assert acwr_zone(1.51) == "risco"
+
+
+def test_acwr_serie_constante_da_um():
+    # carga igual todo dia -> agudo == cronico -> razão 1.0
+    series = {(_dt_date(2026, 6, 20) - _td(days=i)).isoformat(): 10.0 for i in range(28)}
+    ratio, zona = acwr("placeholder", "2026-06-20") if False else acwr(series, "2026-06-20")
+    assert ratio == pytest.approx(1.0, abs=0.01)
+    assert zona == "otimo"
+
+
+def test_acwr_sem_cronico_ausente():
+    ratio, zona = acwr({}, "2026-06-20")
+    assert ratio is None
+    assert zona == "ausente"

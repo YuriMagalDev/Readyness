@@ -55,3 +55,22 @@ def ewma(series_by_date: dict, end_date: str, tau_days: int, span_days: int) -> 
     for x in loads[1:]:
         val = alpha * x + (1 - alpha) * val
     return val
+
+
+def acwr_zone(ratio) -> str:
+    if ratio is None:
+        return "ausente"
+    if ratio < 0.8:
+        return "baixo"
+    if ratio <= 1.5:
+        return "otimo"
+    return "risco"
+
+
+def acwr(series_by_date: dict, end_date: str) -> tuple:
+    agudo = ewma(series_by_date, end_date, tau_days=7, span_days=7)
+    cronico = ewma(series_by_date, end_date, tau_days=28, span_days=28)
+    if cronico == 0:
+        return None, "ausente"
+    ratio = agudo / cronico
+    return ratio, acwr_zone(ratio)
