@@ -74,10 +74,18 @@ def format_saldo(veredito: dict, m: dict, sleep: dict = None, wake: str = None) 
     head = f"☀️ <b>Bom dia!</b>  ·  acordou {_e(wake)}" if wake else "☀️ <b>Bom dia!</b>"
 
     linhas = [head, ""]
-    linhas.append(f"{sem} <b>{word}</b>")
+    score = veredito.get("score")
+    titulo = f"{sem} <b>{word}</b>"
+    if score is not None:
+        titulo += f"  ·  prontidão {score}/100"
+    linhas.append(titulo)
     motivo = veredito.get("motivo")
     if motivo:
         linhas.append(f"<i>{_e(motivo)}</i>")
+    fatores = veredito.get("fatores") or []
+    if fatores:
+        chips = " · ".join(f"{_e(f['label'])} {_e(f['valor'])}" for f in fatores[:3])
+        linhas.append(f"⚠️ {chips}")
     rec = veredito.get("recomendacao")
     if rec:
         linhas.append(f"→ {_e(rec)}")

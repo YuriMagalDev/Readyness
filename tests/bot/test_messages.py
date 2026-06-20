@@ -43,3 +43,20 @@ def test_insights_lista():
         {"label": "FC repouso", "valor": 55, "unidade": " bpm"}]}]
     txt = format_insights(ins)
     assert "FC alta" in txt and "FC repouso" in txt and "55" in txt
+
+
+def test_saldo_mostra_score_e_fatores():
+    veredito = {
+        "status": "amarelo", "score": 58, "motivo": "dor muscular 4",
+        "recomendacao": "Treino leve.",
+        "fatores": [{"chave": "soreness", "label": "Dor muscular", "valor": 4, "desconto": 18}],
+    }
+    txt = format_saldo(veredito, MET)
+    assert "58/100" in txt
+    assert "Dor muscular" in txt
+
+
+def test_saldo_sem_score_degrada():
+    veredito = {"status": "verde", "motivo": "Métricas normais", "recomendacao": "Pode treinar."}
+    txt = format_saldo(veredito, MET)   # sem 'score'/'fatores'
+    assert "/100" not in txt                       # não quebra, só omite
