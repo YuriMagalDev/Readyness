@@ -1,7 +1,7 @@
 import math
 import pytest
 from datetime import date as _dt_date, timedelta as _td
-from src.training_load import session_trimp, estimate_hr_max, daily_load_series, RUN_TYPES, ewma, acwr, acwr_zone, monotony
+from src.training_load import session_trimp, estimate_hr_max, daily_load_series, RUN_TYPES, ewma, acwr, acwr_zone, monotony, resting_hr_baseline
 
 
 def test_trimp_com_fc_conhecida():
@@ -120,3 +120,26 @@ def test_monotony_serie_alternada():
         d = (_dt_date(2026, 6, 20) - _td(days=i)).isoformat()
         series[d] = 10.0 if i % 2 == 0 else 0.0
     assert monotony(series, "2026-06-20") == pytest.approx(1.155, abs=0.01)
+
+
+def test_baseline_media_e_desvio():
+    series = [
+        {"date": "2026-06-18", "value": 50},
+        {"date": "2026-06-19", "value": 52},
+        {"date": "2026-06-20", "value": 60},
+    ]
+    base, desvio = resting_hr_baseline(series, "2026-06-20")
+    assert base == pytest.approx(54.0)          # (50+52+60)/3
+    assert desvio == pytest.approx(6.0)         # 60 - 54
+
+
+def test_baseline_sem_dados_none():
+    base, desvio = resting_hr_baseline([], "2026-06-20")
+    assert base is None and desvio is None
+
+
+def test_baseline_sem_valor_no_dia_desvio_none():
+    series = [{"date": "2026-06-18", "value": 50}, {"date": "2026-06-19", "value": 52}]
+    base, desvio = resting_hr_baseline(series, "2026-06-20")
+    assert base == pytest.approx(51.0)
+    assert desvio is None

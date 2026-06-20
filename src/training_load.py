@@ -85,3 +85,17 @@ def monotony(series_by_date: dict, end_date: str) -> float | None:
     if desvio == 0:
         return None
     return statistics.mean(loads) / desvio
+
+
+def resting_hr_baseline(hr_series: list, end_date: str) -> tuple:
+    end = _dt.date.fromisoformat(end_date)
+    start = (end - _dt.timedelta(days=29)).isoformat()
+    vals = [r["value"] for r in hr_series
+            if r.get("value") is not None and start <= r["date"] <= end_date]
+    if not vals:
+        return None, None
+    base = statistics.mean(vals)
+    hoje = next((r["value"] for r in hr_series
+                 if r["date"] == end_date and r.get("value") is not None), None)
+    desvio = (hoje - base) if hoje is not None else None
+    return base, desvio
