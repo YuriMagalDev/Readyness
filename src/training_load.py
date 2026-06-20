@@ -23,3 +23,21 @@ def estimate_hr_max(activities: list, idade: int) -> int:
     if observados:
         return max(max(observados), tanaka)
     return tanaka
+
+
+RUN_TYPES = {"running", "trail_running", "treadmill_running"}
+
+
+def daily_load_series(activities: list, hr_rest_by_date: dict,
+                      hr_max: float, default_rest: float = 60.0) -> dict:
+    series: dict = {}
+    for a in activities:
+        if a.get("is_strength") or a.get("type") not in RUN_TYPES:
+            continue
+        d = a.get("date")
+        if not d:
+            continue
+        hr_rest = hr_rest_by_date.get(d, default_rest)
+        carga, _ = session_trimp(a, hr_rest, hr_max)
+        series[d] = series.get(d, 0.0) + carga
+    return series

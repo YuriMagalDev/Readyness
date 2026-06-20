@@ -1,6 +1,6 @@
 import math
 import pytest
-from src.training_load import session_trimp, estimate_hr_max
+from src.training_load import session_trimp, estimate_hr_max, daily_load_series, RUN_TYPES
 
 
 def test_trimp_com_fc_conhecida():
@@ -45,3 +45,23 @@ def test_hr_max_usa_tanaka_quando_observada_menor():
 
 def test_hr_max_sem_atividades_usa_tanaka():
     assert estimate_hr_max([], idade=25) == 190
+
+
+def test_daily_load_agrupa_e_ignora_musculacao():
+    acts = [
+        {"date": "2026-06-20", "type": "running", "is_strength": 0,
+         "duration_min": 30, "avg_hr": 150, "max_hr": 170},
+        {"date": "2026-06-20", "type": "indoor_cardio", "is_strength": 1,
+         "duration_min": 45, "avg_hr": 120, "max_hr": 140},
+        {"date": "2026-06-19", "type": "treadmill_running", "is_strength": 0,
+         "duration_min": 20, "avg_hr": None, "max_hr": None},
+    ]
+    series = daily_load_series(acts, {"2026-06-20": 50}, hr_max=190)
+    assert set(series.keys()) == {"2026-06-20", "2026-06-19"}
+    assert series["2026-06-20"] > 0          # só a corrida contou
+    assert series["2026-06-19"] == 20.0      # fallback duração (sem FC)
+
+
+def test_run_types_exclui_cardio():
+    assert "running" in RUN_TYPES
+    assert "indoor_cardio" not in RUN_TYPES
