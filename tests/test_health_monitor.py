@@ -47,17 +47,15 @@ def test_check_calls_haiku(mock_ask):
     assert result["status"] in ("verde", "amarelo", "vermelho")
 
 
-def test_verdict_is_deterministic_no_llm():
-    from src.health_monitor import HealthMonitor
-    ctx = {"resting_hr_today": 60, "resting_hr_avg_7d": 50,
-           "morning_battery_avg": 80, "sleep_debt_hours": 0}
+def test_verdict_usa_score_e_cita_fatores():
+    ctx = {"resting_hr_today": 60, "resting_hr_baseline": 50,  # desvio +10 -> -25
+           "morning_battery_avg": 90}
     out = HealthMonitor().verdict(ctx)
-    assert out["status"] == "vermelho"
-    assert "FC repouso" in out["motivo"]
+    assert out["score"] == 75 and out["status"] == "verde"
+    assert out["fatores"][0]["chave"] == "resting_hr"
 
 
-def test_verdict_green_when_normal():
-    from src.health_monitor import HealthMonitor
-    ctx = {"resting_hr_today": 50, "resting_hr_avg_7d": 50,
-           "morning_battery_avg": 80, "sleep_debt_hours": 0}
-    assert HealthMonitor().verdict(ctx)["status"] == "verde"
+def test_verdict_dia_bom_verde_score_alto():
+    ctx = {"resting_hr_today": 50, "resting_hr_baseline": 50, "morning_battery_avg": 90}
+    out = HealthMonitor().verdict(ctx)
+    assert out["status"] == "verde" and out["score"] == 100

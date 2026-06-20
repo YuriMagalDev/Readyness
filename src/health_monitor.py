@@ -1,5 +1,6 @@
 import json
 from src.ai_coach import ask_coach
+from src.readiness_score import compute_readiness
 
 HR_ALERT_BPM = 5
 BATTERY_LOW = 25
@@ -37,8 +38,8 @@ class HealthMonitor:
         }
 
     def verdict(self, context: dict) -> dict:
-        """Veredito determinístico (só regras, sem LLM)."""
-        return self._evaluate_rules(context)
+        """Veredito determinístico por score 0-100 (sem LLM)."""
+        return compute_readiness(context)
 
     def check(self, context: dict) -> dict:
         rule_result = self._evaluate_rules(context)
