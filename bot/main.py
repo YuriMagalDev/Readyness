@@ -37,6 +37,8 @@ def build_app() -> Application:
         jq.run_daily(jobs.job_morning, time=dt.time(hour=h, minute=m, tzinfo=TZ))
     jq.run_daily(jobs.job_checkin, time=dt.time(hour=cfg.checkin_hour, minute=0, tzinfo=TZ))
     jq.run_repeating(jobs.job_runs, interval=15 * 60, first=30)
+    jq.run_daily(jobs.job_alerts, time=dt.time(hour=10, minute=0, tzinfo=TZ))
+    jq.run_daily(jobs.job_briefing, time=dt.time(hour=19, minute=0, tzinfo=TZ))
     return app
 
 

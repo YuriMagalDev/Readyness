@@ -15,3 +15,16 @@ def test_build_app_registra_atividades_e_job_runs(monkeypatch):
     assert "atividades" in cmds
     nomes = {j.name for j in app.job_queue.jobs()}
     assert any("job_runs" in n for n in nomes)
+
+
+def test_alerts_e_briefing_registrados(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_TOKEN", "tok")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "99")
+    monkeypatch.setenv("DB_PATH", ":memory:")
+    with patch("bot.main.GarminClient", return_value=MagicMock()):
+        from bot.main import build_app
+        from bot import jobs
+        app = build_app()
+    callbacks = {j.callback for j in app.job_queue.jobs()}
+    assert jobs.job_alerts in callbacks
+    assert jobs.job_briefing in callbacks
