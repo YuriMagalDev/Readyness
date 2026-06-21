@@ -28,3 +28,18 @@ def test_alerts_e_briefing_registrados(monkeypatch):
     callbacks = {j.callback for j in app.job_queue.jobs()}
     assert jobs.job_alerts in callbacks
     assert jobs.job_briefing in callbacks
+
+
+def test_handler_plano_registrado(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_TOKEN", "x")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "1")
+    monkeypatch.setattr("bot.main.HistoryDB", lambda db_path: object())
+    monkeypatch.setattr("bot.main.GarminClient", lambda: object())
+    from bot import main, handlers
+    app = main.build_app()
+    cmds = set()
+    for h in app.handlers[0]:
+        cb = getattr(h, "callback", None)
+        if cb is not None:
+            cmds.add(cb)
+    assert handlers.cmd_plano in cmds

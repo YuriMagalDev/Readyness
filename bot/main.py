@@ -31,6 +31,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(handlers.on_checkin_button, pattern=r"^ci:"))
     app.add_handler(CommandHandler("atividades", handlers.cmd_atividades))
     app.add_handler(CallbackQueryHandler(handlers.on_activity_button, pattern=r"^act:"))
+    app.add_handler(CommandHandler("plano", handlers.cmd_plano))
 
     jq = app.job_queue
     for (h, m) in cfg.morning_slots:

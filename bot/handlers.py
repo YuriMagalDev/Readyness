@@ -27,7 +27,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Readiness bot. Comandos:\n"
         "/saldo — saldo do dia\n/insights — leitura da IA\n"
         "/checkin — responder hidratação/energia/dor/alimentação\n"
-        "/semana — resumo 7d\n/mes — resumo 30d"
+        "/semana — resumo 7d\n/mes — resumo 30d\n"
+        "/plano — registrar/ver o plano da semana"
     )
 
 
