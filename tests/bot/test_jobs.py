@@ -5,6 +5,14 @@ from src.history_db import HistoryDB
 from bot.config import Config
 from bot import jobs
 
+
+def _FakeDate(fixed):
+    class _D(dt.date):
+        @classmethod
+        def today(cls):
+            return fixed
+    return _D
+
 def _cfg():
     return Config(token="t", chat_id=99, checkin_hour=21,
                   morning_slots=((9, 30), (12, 0), (14, 0)), db_path=":memory:")
@@ -94,6 +102,29 @@ async def test_job_alerts_anti_spam(tmp_path, monkeypatch):
         "acwr": 1.9, "resting_hr_baseline": None})
     await jobs.job_alerts(ctx)
     assert ctx.bot.send_message.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_job_briefing_so_domingo_e_uma_vez(tmp_path, monkeypatch):
+    db = HistoryDB(db_path=str(tmp_path / "br.db"))
+    client = MagicMock()
+    monkeypatch.setattr(jobs, "Ingestor", lambda c, d: MagicMock(sync_today=lambda: None))
+    monkeypatch.setattr(jobs, "build_weekly_briefing", lambda db, today: {
+        "km_7d": 13.0, "sessoes": 2, "acwr": 1.2, "sono_medio": 7.0,
+        "fc_max": 190, "recomendacao": "Mantenha a carga atual."})
+    ctx = _job_ctx(db, client)
+
+    # segunda-feira (weekday 0) -> não manda
+    monkeypatch.setattr(jobs.dt, "date", _FakeDate(dt.date(2026, 6, 22)))   # 2026-06-22 = segunda
+    await jobs.job_briefing(ctx)
+    assert ctx.bot.send_message.await_count == 0
+
+    # domingo (weekday 6) -> manda 1x, não repete
+    monkeypatch.setattr(jobs.dt, "date", _FakeDate(dt.date(2026, 6, 21)))   # 2026-06-21 = domingo
+    await jobs.job_briefing(ctx)
+    assert ctx.bot.send_message.await_count == 1
+    await jobs.job_briefing(ctx)
+    assert ctx.bot.send_message.await_count == 1
 
 
 @pytest.mark.asyncio

@@ -14,6 +14,7 @@ from src.metric_reader import context_from_metrics
 from bot.runs import filter_runs
 from src.services_core import build_run_detail
 from src.extractors import activity_from_garmin
+from src.weekly_briefing import build_weekly_briefing
 
 
 def _now_time():
@@ -110,6 +111,31 @@ async def job_runs(context: ContextTypes.DEFAULT_TYPE):
         db.mark_notified(aid)
     if not seeded:
         db.set_state(_RUNS_SEEDED, "1")
+
+
+_BRIEFING_DATE = "briefing_date"
+
+
+async def job_briefing(context: ContextTypes.DEFAULT_TYPE):
+    """Domingo 19:00: resumo da semana. Auto-guard por weekday (6=domingo, Mon=0)."""
+    cfg = context.bot_data["cfg"]
+    db = context.bot_data["db"]
+    client = context.bot_data["client"]
+    today = dt.date.today()
+    if today.weekday() != 6:
+        return
+    day = today.isoformat()
+    if db.get_state(_BRIEFING_DATE) == day:
+        return
+    try:
+        Ingestor(client, db).sync_today()
+    except Exception as e:  # noqa: BLE001
+        _log.warning("job_briefing: sync falhou: %s", e)
+    data = build_weekly_briefing(db, today)
+    await context.bot.send_message(
+        chat_id=cfg.chat_id, text=messages.format_briefing(data),
+        parse_mode=messages.PARSE_MODE)
+    db.set_state(_BRIEFING_DATE, day)
 
 
 async def job_alerts(context: ContextTypes.DEFAULT_TYPE):
