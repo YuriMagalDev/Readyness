@@ -87,3 +87,25 @@ def test_format_briefing():
                                       "sono_medio": None, "fc_max": 190,
                                       "recomendacao": "Mantenha a carga atual."})
     assert "—" in vazio
+
+
+def test_format_plan_grade_e_status():
+    from bot import messages
+    matched = {
+        "corrida": [
+            {"dia": "seg", "descricao": "intervalado", "status": "feito"},
+            {"dia": "sex", "descricao": "longao", "status": "pendente"},
+        ],
+        "musculacao": [{"dia": "ter", "descricao": "superior", "status": "furou"}],
+    }
+    txt = messages.format_plan(matched, score=72, acwr=1.2)
+    assert "Plano da semana" in txt
+    assert "72/100" in txt and "1.2" in txt
+    assert "✅" in txt and "⏳" in txt and "❌" in txt
+    assert "intervalado" in txt and "superior" in txt
+
+
+def test_format_plan_sem_score_em_dash():
+    from bot import messages
+    txt = messages.format_plan({"corrida": [], "musculacao": []})
+    assert "—/100" in txt          # score None vira em-dash

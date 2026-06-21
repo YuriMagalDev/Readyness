@@ -185,3 +185,22 @@ def format_briefing(data: dict) -> str:
         f"→ {_e(data.get('recomendacao', ''))}",
     ]
     return "\n".join(linhas)
+
+
+_PLAN_ICON = {"feito": "✅", "furou": "❌", "pendente": "⏳"}
+
+
+def format_plan(matched: dict, score=None, acwr=None) -> str:
+    linhas = [
+        "🗓 <b>Plano da semana</b>", _RULE,
+        f"prontidão {_dash(score)}/100 · ACWR {_dash(acwr)}", _RULE,
+    ]
+    for grade, titulo in (("corrida", "🏃 Corrida"), ("musculacao", "🏋 Musculação")):
+        sessoes = matched.get(grade) or []
+        if not sessoes:
+            continue
+        linhas.append(f"<b>{titulo}</b>")
+        for s in sessoes:
+            icon = _PLAN_ICON.get(s.get("status"), "•")
+            linhas.append(f"{icon} {_e(s.get('dia', ''))} — {_e(s.get('descricao', ''))}")
+    return "\n".join(linhas)
