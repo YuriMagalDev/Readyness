@@ -151,12 +151,11 @@ async def job_alerts(context: ContextTypes.DEFAULT_TYPE):
     try:
         ctx = context_from_metrics(db, day)
         veredito = core.daily_analysis(db, day)["veredito"]
+        start7 = (dt.date.today() - dt.timedelta(days=6)).isoformat()
+        hr_rows = db.get_metric_series("resting_hr", start7, day)
     except Exception as e:  # noqa: BLE001
         _log.warning("job_alerts: contexto falhou: %s", e)
         return
-
-    start7 = (dt.date.today() - dt.timedelta(days=6)).isoformat()
-    hr_rows = db.get_metric_series("resting_hr", start7, day)
     over = {"kind": "overreaching", "veredito": veredito} if veredito.get("overreaching") else None
     checks = [
         ("alert_hr", alerts.hr_rising(hr_rows, ctx.get("resting_hr_baseline"))),
