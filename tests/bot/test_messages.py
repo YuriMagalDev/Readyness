@@ -60,3 +60,30 @@ def test_saldo_sem_score_degrada():
     veredito = {"status": "verde", "motivo": "Métricas normais", "recomendacao": "Pode treinar."}
     txt = format_saldo(veredito, MET)   # sem 'score'/'fatores'
     assert "/100" not in txt                       # não quebra, só omite
+
+
+def test_format_alert_cada_kind():
+    from bot import messages
+    hr = messages.format_alert({"kind": "hr_rising", "dias": 3, "baseline": 50.0,
+                                "valores": [54, 55, 56]})
+    assert "FC repouso" in hr
+    acwr = messages.format_alert({"kind": "acwr_risk", "acwr": 1.8})
+    assert "1.8" in acwr and "risco" in acwr.lower()
+    over = messages.format_alert({"kind": "overreaching",
+                                  "veredito": {"motivo": "FC alta + carga + dor"}})
+    assert "Overreaching" in over
+    # kind desconhecido não quebra
+    assert isinstance(messages.format_alert({"kind": "zzz"}), str)
+
+
+def test_format_briefing():
+    from bot import messages
+    txt = messages.format_briefing({"km_7d": 13.0, "sessoes": 2, "acwr": 1.2,
+                                    "sono_medio": 7.0, "fc_max": 190,
+                                    "recomendacao": "Mantenha a carga atual."})
+    assert "Resumo da semana" in txt and "13.0" in txt
+    # campos None viram em-dash, não quebra
+    vazio = messages.format_briefing({"km_7d": 0.0, "sessoes": 0, "acwr": None,
+                                      "sono_medio": None, "fc_max": 190,
+                                      "recomendacao": "Mantenha a carga atual."})
+    assert "—" in vazio

@@ -150,3 +150,38 @@ def format_activity(activity: dict, insight: str) -> str:
     hr_s = f"{round(hr)} bpm" if hr else "—"
     head = f"🏃 <b>{nome}</b>\n{km} · {tempo} · {pace_s} · ❤️ {hr_s}"
     return f"{head}\n{_RULE}\n{_e(insight)}"
+
+
+def _dash(v):
+    return _e(v) if v is not None else "—"
+
+
+def format_alert(detail: dict) -> str:
+    kind = (detail or {}).get("kind")
+    if kind == "hr_rising":
+        vals = " · ".join(str(v) for v in detail.get("valores", []))
+        return (f"⚠️ <b>FC repouso subindo</b>\n{_RULE}\n"
+                f"{detail.get('dias')} dias acima da base ({_dash(detail.get('baseline'))} bpm): {vals}\n"
+                "Possível fadiga/infecção — considere pegar leve.")
+    if kind == "acwr_risk":
+        return (f"⚠️ <b>Carga em risco</b>\n{_RULE}\n"
+                f"ACWR {_dash(detail.get('acwr'))} (zona de risco).\n"
+                "Pico de carga, risco de lesão — pisa no freio.")
+    if kind == "overreaching":
+        motivo = (detail.get("veredito") or {}).get("motivo", "")
+        return (f"🛑 <b>Overreaching</b>\n{_RULE}\n{_e(motivo)}\n"
+                "Descanso recomendado.")
+    return "⚠️ Alerta."
+
+
+def format_briefing(data: dict) -> str:
+    linhas = [
+        "📊 <b>Resumo da semana</b>", _RULE,
+        f"🏃 Distância  <b>{_dash(data.get('km_7d'))}</b> km · {_dash(data.get('sessoes'))} sessões",
+        f"📈 ACWR  <b>{_dash(data.get('acwr'))}</b>",
+        f"😴 Sono médio  <b>{_dash(data.get('sono_medio'))}</b> h",
+        f"❤️ FCmáx  <b>{_dash(data.get('fc_max'))}</b>",
+        _RULE,
+        f"→ {_e(data.get('recomendacao', ''))}",
+    ]
+    return "\n".join(linhas)
