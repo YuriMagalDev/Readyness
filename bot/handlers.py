@@ -8,6 +8,10 @@ from bot.charts import recovery_chart_png
 from bot.runs import filter_runs
 from src.services_core import save_checkin, build_trends, build_run_detail
 from src.extractors import activity_from_garmin
+from src.plan_parser import parse_plan
+from src.plan_tracker import match_plan, week_start_of
+from src.readiness_score import compute_readiness
+from src.metric_reader import context_from_metrics
 
 
 def _authorized(update: Update, context) -> bool:
@@ -136,6 +140,44 @@ async def cmd_atividades(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Escolha uma corrida pra ver o insight:", reply_markup=InlineKeyboardMarkup(teclado)
     )
+
+
+async def cmd_plano(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _authorized(update, context):
+        return
+    db = context.bot_data["db"]
+    today = dt.date.today()
+    week_start = week_start_of(today)
+    texto = update.message.text or ""
+    corpo = "\n".join(texto.splitlines()[1:]).strip()  # linhas após o /plano
+
+    if corpo:
+        plan = parse_plan(texto)
+        if not plan["corrida"] and not plan["musculacao"]:
+            await update.message.reply_text(
+                "Formato inválido. Ex:\n/plano\nseg corrida 40min\nter musculacao superior")
+            return
+        db.upsert_plan(week_start, plan, dt.datetime.now().isoformat(timespec="seconds"))
+        await update.message.reply_text(
+            f"Plano salvo: {len(plan['corrida'])} corridas, {len(plan['musculacao'])} musculações.")
+
+    stored = db.get_plan(week_start)
+    if stored is None:
+        await update.message.reply_text(
+            "Nenhum plano esta semana. Registre colando:\n"
+            "/plano\nseg corrida 40min\nter musculacao superior")
+        return
+
+    plan = stored["plan"]
+    acts = db.get_activities(week_start, today.isoformat())
+    matched = match_plan(plan, acts, today, week_start)
+    try:
+        ctx = context_from_metrics(db, today.isoformat())
+        score, acwr = compute_readiness(ctx)["score"], ctx.get("acwr")
+    except Exception:  # noqa: BLE001 — prontidão é enfeite do cabeçalho; plano sai mesmo sem ela
+        score, acwr = None, None
+    await update.message.reply_text(
+        messages.format_plan(matched, score, acwr), parse_mode=messages.PARSE_MODE)
 
 
 async def on_activity_button(update: Update, context: ContextTypes.DEFAULT_TYPE):

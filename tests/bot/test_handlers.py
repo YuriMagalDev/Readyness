@@ -56,3 +56,47 @@ async def test_callback_checkin_grava_no_dia_do_checkin(tmp_path):
     assert rows["energia"] == 4                       # gravou no dia do check-in
     assert db.get_metrics_for_date(dt.date.today().isoformat()) == []  # não no dia do clique
     update.callback_query.edit_message_text.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_cmd_plano_registra_e_mostra(tmp_path):
+    db = HistoryDB(db_path=str(tmp_path / "p.db"))
+    update = MagicMock()
+    update.effective_chat.id = 99
+    update.message.text = "/plano\nseg corrida intervalado\nter musculacao superior"
+    update.message.reply_text = AsyncMock()
+    await handlers.cmd_plano(update, _ctx(db))
+    # 1ª reply = confirmação, 2ª = grade
+    assert update.message.reply_text.await_count == 2
+    assert "salvo" in update.message.reply_text.await_args_list[0].args[0].lower()
+    # persistiu
+    from src.plan_tracker import week_start_of
+    import datetime
+    ws = week_start_of(datetime.date.today())
+    assert db.get_plan(ws) is not None
+
+
+@pytest.mark.asyncio
+async def test_cmd_plano_sem_plano_instrui(tmp_path):
+    db = HistoryDB(db_path=str(tmp_path / "p2.db"))
+    update = MagicMock()
+    update.effective_chat.id = 99
+    update.message.text = "/plano"
+    update.message.reply_text = AsyncMock()
+    await handlers.cmd_plano(update, _ctx(db))
+    assert update.message.reply_text.await_count == 1
+    assert "registre" in update.message.reply_text.await_args.args[0].lower()
+
+
+@pytest.mark.asyncio
+async def test_cmd_plano_formato_invalido_nao_salva(tmp_path):
+    db = HistoryDB(db_path=str(tmp_path / "p3.db"))
+    update = MagicMock()
+    update.effective_chat.id = 99
+    update.message.text = "/plano\nblah blah nada aqui"
+    update.message.reply_text = AsyncMock()
+    await handlers.cmd_plano(update, _ctx(db))
+    assert "inválido" in update.message.reply_text.await_args.args[0].lower()
+    from src.plan_tracker import week_start_of
+    import datetime
+    assert db.get_plan(week_start_of(datetime.date.today())) is None
