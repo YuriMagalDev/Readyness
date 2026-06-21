@@ -9,6 +9,8 @@ from bot.state import already_sent_saldo, mark_saldo_sent, already_prompted_chec
 from bot.wake_detector import wake_time_local
 from bot.checkin import CHECKINS, scale_keyboard, prompt_text
 from src.ingestor import Ingestor
+from src import alerts
+from src.metric_reader import context_from_metrics
 from bot.runs import filter_runs
 from src.services_core import build_run_detail
 from src.extractors import activity_from_garmin
@@ -108,3 +110,39 @@ async def job_runs(context: ContextTypes.DEFAULT_TYPE):
         db.mark_notified(aid)
     if not seeded:
         db.set_state(_RUNS_SEEDED, "1")
+
+
+async def job_alerts(context: ContextTypes.DEFAULT_TYPE):
+    """Diário: checa FC subindo / ACWR risco / overreaching e alerta 1x por episódio."""
+    cfg = context.bot_data["cfg"]
+    db = context.bot_data["db"]
+    client = context.bot_data["client"]
+    day = dt.date.today().isoformat()
+    try:
+        Ingestor(client, db).sync_today()
+    except Exception as e:  # noqa: BLE001
+        _log.warning("job_alerts: sync falhou: %s", e)
+    try:
+        ctx = context_from_metrics(db, day)
+        veredito = core.daily_analysis(db, day)["veredito"]
+    except Exception as e:  # noqa: BLE001
+        _log.warning("job_alerts: contexto falhou: %s", e)
+        return
+
+    start7 = (dt.date.today() - dt.timedelta(days=6)).isoformat()
+    hr_rows = db.get_metric_series("resting_hr", start7, day)
+    over = {"kind": "overreaching", "veredito": veredito} if veredito.get("overreaching") else None
+    checks = [
+        ("alert_hr", alerts.hr_rising(hr_rows, ctx.get("resting_hr_baseline"))),
+        ("alert_acwr", alerts.acwr_risk(ctx.get("acwr"))),
+        ("alert_over", over),
+    ]
+    for key, detail in checks:
+        if detail is not None:
+            if db.get_state(key) != "1":
+                await context.bot.send_message(
+                    chat_id=cfg.chat_id, text=messages.format_alert(detail),
+                    parse_mode=messages.PARSE_MODE)
+                db.set_state(key, "1")
+        else:
+            db.set_state(key, "0")

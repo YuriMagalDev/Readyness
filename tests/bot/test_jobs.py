@@ -66,6 +66,37 @@ async def test_job_morning_ultimo_slot_envia_mesmo_sem_sync(tmp_path, monkeypatc
 
 
 @pytest.mark.asyncio
+async def test_job_alerts_anti_spam(tmp_path, monkeypatch):
+    db = HistoryDB(db_path=str(tmp_path / "a.db"))
+    client = MagicMock()
+    monkeypatch.setattr(jobs, "Ingestor", lambda c, d: MagicMock(sync_today=lambda: None))
+    # contexto com ACWR em risco; sem FC/baseline (só ACWR dispara)
+    monkeypatch.setattr(jobs, "context_from_metrics", lambda db, day: {
+        "acwr": 1.8, "resting_hr_baseline": None})
+    monkeypatch.setattr(jobs.core, "daily_analysis", lambda db, day, force=False: {
+        "veredito": {"overreaching": False}})
+    ctx = _job_ctx(db, client)
+
+    await jobs.job_alerts(ctx)
+    assert ctx.bot.send_message.await_count == 1      # ACWR cruzou -> 1 alerta
+    await jobs.job_alerts(ctx)
+    assert ctx.bot.send_message.await_count == 1      # ainda risco -> não repete
+
+    # ACWR normaliza -> reseta episódio
+    monkeypatch.setattr(jobs, "context_from_metrics", lambda db, day: {
+        "acwr": 1.0, "resting_hr_baseline": None})
+    await jobs.job_alerts(ctx)
+    assert ctx.bot.send_message.await_count == 1      # sem alerta
+    assert db.get_state("alert_acwr") == "0"
+
+    # volta a risco -> dispara de novo
+    monkeypatch.setattr(jobs, "context_from_metrics", lambda db, day: {
+        "acwr": 1.9, "resting_hr_baseline": None})
+    await jobs.job_alerts(ctx)
+    assert ctx.bot.send_message.await_count == 2
+
+
+@pytest.mark.asyncio
 async def test_job_morning_degrada_quando_garmin_falha(tmp_path, monkeypatch):
     # Garmin fora (load_context lança): manda o veredito do DB mesmo assim e marca enviado
     db = HistoryDB(db_path=str(tmp_path / "h.db"))
