@@ -29,7 +29,10 @@ def build_app() -> Application:
             app.bot_data["profile"] = json.load(fh)
     except FileNotFoundError:
         app.bot_data["profile"] = {}
-    app.bot_data["anthropic"] = anthropic.Anthropic()
+    try:
+        app.bot_data["anthropic"] = anthropic.Anthropic()
+    except Exception:  # noqa: BLE001 — sem ANTHROPIC_API_KEY: cadastro por foto fica indisponivel, bot sobe
+        app.bot_data["anthropic"] = None
 
     app.add_handler(CommandHandler("start", handlers.cmd_start))
     app.add_handler(CommandHandler("saldo", handlers.cmd_saldo))

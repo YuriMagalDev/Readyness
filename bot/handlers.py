@@ -23,7 +23,7 @@ _DP_MAP = {"dp:treino": (1, 0), "dp:corrida": (0, 1),
            "dp:ambos": (1, 1), "dp:descanso": (0, 0)}
 
 
-def parse_day_plan_callback(data: str) -> tuple:
+def parse_day_plan_callback(data: str) -> tuple[int, int]:
     return _DP_MAP.get(data, (0, 0))
 
 
