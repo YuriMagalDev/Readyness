@@ -18,3 +18,16 @@ def test_perfil_sobrescreve_defaults():
     assert cfg["protein_g"] == 180
     assert cfg["fat_g"] == 60  # não sobrescrito → default
     assert round(cfg["lbm_kg"], 1) == 80.0
+
+
+def test_ex_kcal_defaults_presentes():
+    cfg = nutrition_config({"peso_kg": 108, "percentual_gordura": 30})
+    assert cfg["ex_kcal_treino"] == 300
+    assert cfg["ex_kcal_corrida"] == 400
+
+
+def test_ex_kcal_sobrescreve():
+    cfg = nutrition_config({"peso_kg": 100, "percentual_gordura": 20,
+                            "nutricao": {"ex_kcal_treino": 250, "ex_kcal_corrida": 450}})
+    assert cfg["ex_kcal_treino"] == 250
+    assert cfg["ex_kcal_corrida"] == 450

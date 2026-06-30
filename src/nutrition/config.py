@@ -5,6 +5,8 @@ _DEFAULTS = {
     "fat_g": 60,
     "ea_low": 25,
     "ea_ok": 30,
+    "ex_kcal_treino": 300,
+    "ex_kcal_corrida": 400,
 }
 
 
