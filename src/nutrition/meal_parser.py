@@ -1,7 +1,35 @@
 import re
+import unicodedata
 
 _GRAMS = re.compile(r"^\s*(\d+(?:[.,]\d+)?)\s*g\s+(.*)$", re.I)
 _UNIT = re.compile(r"^\s*(\d+(?:[.,]\d+)?)\s+(.*)$")
+
+# tipos de refeição reconhecidos no início do texto (com ou sem ":").
+_MEALS = [
+    "cafe da manha", "cafe", "almoco", "lanche da tarde", "lanche",
+    "jantar", "janta", "ceia", "pre treino", "pos treino", "ceia da noite",
+]
+
+
+def _norm(s: str) -> str:
+    s = unicodedata.normalize("NFKD", s or "")
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    return " ".join(s.lower().split())
+
+
+def _extract_meal(text: str):
+    """Separa o tipo de refeição do início. Retorna (meal|None, resto)."""
+    if ":" in text:
+        head, rest = text.split(":", 1)
+        if len(head.split()) <= 4:        # "café da manhã:" cabe
+            return head.strip(), rest.strip()
+    n = _norm(text)
+    for lbl in sorted(_MEALS, key=len, reverse=True):
+        if n == lbl or n.startswith(lbl + " "):
+            nwords = len(lbl.split())
+            palavras = text.split()
+            return " ".join(palavras[:nwords]), " ".join(palavras[nwords:])
+    return None, text
 
 
 def _num(s: str) -> float:
@@ -53,11 +81,7 @@ def _parse_item(raw: str, db) -> dict:
 
 def parse_meal(text: str, db) -> dict:
     text = (text or "").strip()
-    meal = None
-    if ":" in text:
-        head, rest = text.split(":", 1)
-        if len(head.split()) <= 2:        # "almoço", "café da manhã" curto
-            meal, text = head.strip(), rest.strip()
+    meal, text = _extract_meal(text)
     parts = [p for p in re.split(r"[,\n]", text) if p.strip()]
     items = [_parse_item(p, db) for p in parts] or [{"raw": text, "recognized": False}]
     return {"meal": meal, "items": items}

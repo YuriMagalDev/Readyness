@@ -59,3 +59,30 @@ def test_parse_custom_em_gramas():
     out = parse_meal("60g whey soldier", db)   # 60g = 2 porções de 30g
     item = out["items"][0]
     assert round(item["kcal"]) == 240
+
+
+def test_tipo_refeicao_sem_dois_pontos():
+    db = FoodDB("tests/fixtures/taco_min.csv")
+    out = parse_meal("almoço 100g arroz", db)
+    assert out["meal"] == "almoço"
+    assert out["items"][0]["recognized"] is True
+
+
+def test_tipo_cafe_da_manha_multipalavra():
+    db = FoodDB("tests/fixtures/taco_min.csv")
+    out = parse_meal("café da manhã 2 ovos", db)
+    assert out["meal"] == "café da manhã"
+    assert out["items"][0]["grams"] == 100  # 2 ovos
+
+
+def test_tipo_com_dois_pontos_ainda_funciona():
+    db = FoodDB("tests/fixtures/taco_min.csv")
+    out = parse_meal("janta: 100g arroz", db)
+    assert out["meal"] == "janta"
+
+
+def test_sem_tipo_segue_none():
+    db = FoodDB("tests/fixtures/taco_min.csv")
+    out = parse_meal("100g arroz", db)
+    assert out["meal"] is None
+    assert out["items"][0]["recognized"] is True
