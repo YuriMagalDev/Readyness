@@ -21,6 +21,10 @@ ALIASES = {
     "arroz": "arroz cozido",
 }
 
+# margem mínima de score entre o 1º e o 2º candidato fuzzy. Abaixo dela o match é
+# considerado ambíguo (vários alimentos colados) e vira "não reconhecido" → cadastro.
+_AMBIGUITY_MARGIN = 5
+
 PORTIONS = {
     "ovo": 50.0,
     "ovos": 50.0,
@@ -95,8 +99,12 @@ class FoodDB:
             item = self._by_name[normalize(alias)]
             return {**item, "score": 100}
         choices = list(self._by_name.keys())
-        best = process.extractOne(key, choices, scorer=fuzz.WRatio)
-        if best and best[1] >= threshold:
+        results = process.extract(key, choices, scorer=fuzz.WRatio, limit=2)
+        if results and results[0][1] >= threshold:
+            best = results[0]
+            # ambíguo: 2+ alimentos com score colado → não chuta, deixa o usuário cadastrar.
+            if len(results) > 1 and (best[1] - results[1][1]) < _AMBIGUITY_MARGIN:
+                return None
             item = self._by_name[best[0]]
             return {**item, "score": int(best[1])}
         return None

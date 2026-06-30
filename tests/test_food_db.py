@@ -96,3 +96,16 @@ def test_aliases_por_instancia_sobrescreve_global():
 def test_portions_por_instancia():
     db = FoodDB(FIX, portions={"unidade x": 42.0})
     assert db.portion_grams("unidade x") == 42.0
+
+
+def test_match_ambiguo_retorna_none():
+    # "cozido" empata entre arroz/ovo/feijao cozido -> ambíguo -> None (cadastro)
+    db = FoodDB(FIX)
+    assert db.match("cozido") is None
+
+
+def test_match_confiante_com_gap_resolve():
+    # typo com 2º candidato distante -> confia e casa
+    db = FoodDB(FIX)
+    m = db.match("arrloz cozido")
+    assert m is not None and m["name"] == "arroz cozido"
