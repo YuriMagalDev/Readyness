@@ -15,7 +15,20 @@ from src.plan_tracker import match_plan, week_start_of
 from src.readiness_score import compute_readiness
 from src.metric_reader import context_from_metrics
 from src.nutrition.meal_parser import parse_meal
+from src.nutrition.label_vision import extract_label
 import src.nutrition.store as store
+
+
+def parse_manual_macros(text: str):
+    """Parse '120 24 3 1.5' -> {'kcal':120,'p':24,'c':3,'g':1.5}. Returns None on error."""
+    parts = (text or "").replace(",", ".").split()
+    if len(parts) != 4:
+        return None
+    try:
+        kcal, p, c, g = (float(x) for x in parts)
+    except ValueError:
+        return None
+    return {"kcal": kcal, "p": p, "c": c, "g": g}
 
 
 def _authorized(update: Update, context) -> bool:
@@ -201,10 +214,22 @@ async def cmd_comi(update, context):
     fdb = load_food_db(db_path)
     parsed = parse_meal(text, fdb)
     context.user_data["pending_meal"] = parsed
-    kb = InlineKeyboardMarkup([[
+
+    # Check for unrecognized items — offer cadastro buttons for the first one
+    unrecognized = [it for it in parsed.get("items", []) if not it.get("recognized")]
+    buttons = [
         InlineKeyboardButton("✅ salvar", callback_data="nut:save"),
         InlineKeyboardButton("✏️ corrigir", callback_data="nut:edit"),
-    ]])
+    ]
+    if unrecognized:
+        first_raw = unrecognized[0].get("raw", "")
+        context.user_data["pending_food"] = first_raw
+        buttons += [
+            InlineKeyboardButton("📷 foto da tabela", callback_data="nut:photo"),
+            InlineKeyboardButton("⌨ digitar macros", callback_data="nut:manual"),
+        ]
+
+    kb = InlineKeyboardMarkup([buttons[:2], buttons[2:]] if len(buttons) > 2 else [buttons])
     await update.message.reply_text(format_meal_confirm(parsed), reply_markup=kb)
 
 
@@ -229,6 +254,23 @@ async def on_nutrition_button(update, context):
     elif q.data == "nut:del":
         ok = store.delete_last_meal_item(db_path, day)
         await q.edit_message_text("Última refeição apagada." if ok else "Nada pra apagar.")
+    elif q.data == "nut:photo":
+        name = context.user_data.get("pending_food") or ""
+        await q.edit_message_text(
+            f"Manda a foto da tabela nutricional de '{name}'.")
+    elif q.data == "nut:foodsave":
+        data = context.user_data.pop("pending_custom", None)
+        if data:
+            store.add_custom_food(db_path, data["name"], data["base_unit"],
+                                  data.get("porcao_g"), data["kcal"], data["p"],
+                                  data["c"], data["g"])
+            await q.edit_message_text(f"Cadastrado: {data['name']}. Refaça o /comi.")
+    elif q.data == "nut:manual":
+        name = (context.user_data.get("pending_custom") or {}).get("name") \
+            or context.user_data.get("pending_food")
+        context.user_data["awaiting_manual"] = name
+        await q.edit_message_text(
+            "Manda: kcal proteína carbo gordura (ex.: 120 24 3 1.5)")
 
 
 async def cmd_dieta(update, context):
@@ -241,6 +283,55 @@ async def cmd_dieta(update, context):
     png = nutrition_chart_png(panel["totals"], panel["target"], panel["ea"], titulo=titulo)
     kb = InlineKeyboardMarkup([[InlineKeyboardButton("🗑 apagar última", callback_data="nut:del")]])
     await update.message.reply_photo(png, reply_markup=kb)
+
+
+async def on_photo(update, context):
+    """Handle photo message: if pending_food set, extract label and confirm before saving."""
+    if not _authorized(update, context):
+        return
+    name = context.user_data.get("pending_food")
+    if not name:
+        return                                  # foto sem contexto de cadastro: ignora
+    client = context.bot_data.get("anthropic")  # populated in Task 14
+    model = context.bot_data["cfg"].vision_model
+    photo = update.message.photo[-1]
+    f = await photo.get_file()
+    buf = await f.download_as_bytearray()
+    data = extract_label(bytes(buf), client=client, model=model)
+    if not data:
+        await update.message.reply_text(
+            "Não consegui ler a tabela. Manda os macros: kcal proteína carbo gordura "
+            "(ex.: 120 24 3 1.5)")
+        context.user_data["awaiting_manual"] = name
+        return
+    data["name"] = name
+    context.user_data["pending_custom"] = data
+    base = "porção" if data["base_unit"] == "porcao" else "100g"
+    kb = InlineKeyboardMarkup([[
+        InlineKeyboardButton("✅ salvar", callback_data="nut:foodsave"),
+        InlineKeyboardButton("⌨ digitar", callback_data="nut:manual"),
+    ]])
+    await update.message.reply_text(
+        f"Li ({base}): {round(data['kcal'])} kcal · P {data['p']:.0f} · "
+        f"C {data['c']:.0f} · G {data['g']:.0f}. Confere?", reply_markup=kb)
+
+
+async def on_text_macros(update, context):
+    """Handle free-text macro entry when awaiting_manual is set."""
+    if not _authorized(update, context):
+        return
+    name = context.user_data.get("awaiting_manual")
+    if not name:
+        return
+    macros = parse_manual_macros(update.message.text)
+    if not macros:
+        await update.message.reply_text("Formato: kcal proteína carbo gordura (ex.: 120 24 3 1.5)")
+        return
+    db_path = context.bot_data["db_path"]
+    store.add_custom_food(db_path, name, "100g", None,
+                          macros["kcal"], macros["p"], macros["c"], macros["g"])
+    context.user_data.pop("awaiting_manual", None)
+    await update.message.reply_text(f"Cadastrado: {name}. Refaça o /comi.")
 
 
 async def on_activity_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
