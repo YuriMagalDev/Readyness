@@ -28,12 +28,14 @@ Match abaixo do limiar = pergunta ao usuário, jamais chuta valor.
 Módulo novo `src/nutrition/`, isolado, testável por unidade:
 
 - **`food_db.py`** — carrega a TACO (CSV embarcado, ~600 itens, valores por 100 g:
-  kcal, proteína, carbo, gordura). Expõe:
-  - lookup exato por nome normalizado;
+  kcal, proteína, carbo, gordura) **+ os itens de `custom_foods`** (cadastrados pelo
+  usuário). Expõe:
+  - lookup exato por nome normalizado (custom_foods tem prioridade sobre TACO);
   - match fuzzy (`rapidfuzz`) com limiar; abaixo do limiar → "não reconhecido";
   - tabela de **aliases** (ex.: `frango` → `peito de frango grelhado`);
   - tabela de **porções unitárias** (ex.: `1 ovo` = 50 g, `1 banana` = 100 g,
     `1 fatia de pão` = 25 g).
+  - Não achou em lugar nenhum → dispara o **cadastro manual** (uma vez).
 - **`meal_parser.py`** — função pura. Texto da refeição → lista de itens
   `{food, grams, kcal, p, c, g}`. Patterns: `100g arroz`, `200 g peito de frango`,
   `2 ovos`, `1 fatia pão`. Itens sem match viram `{raw, recognized: false}`.
@@ -51,6 +53,12 @@ meal_log(date TEXT, meal TEXT, food TEXT, grams REAL,
          kcal REAL, p REAL, c REAL, g REAL, logged_at TEXT)
 
 day_plan(date TEXT PRIMARY KEY, vai_treinar INT, vai_correr INT, set_at TEXT)
+
+-- itens cadastrados manualmente quando não estão na TACO.
+-- base_unit: "100g" (valores por 100 g) ou "porcao" (valores por 1 unidade/scoop).
+-- porcao_g: gramas por porção quando base_unit="porcao" (opcional, informativo).
+custom_foods(name TEXT PRIMARY KEY, base_unit TEXT, porcao_g REAL,
+             kcal REAL, p REAL, c REAL, g REAL, created_at TEXT)
 ```
 
 `meal_log` e `day_plan` ficam legíveis por camadas futuras (prontidão), mas **não**
@@ -117,7 +125,15 @@ Bot **ecoa antes de salvar** (passo de confirmação — substitui a segurança 
 [✅ salvar] [✏️ corrigir]
 ```
 
-- Item não reconhecido: `❓ "patinho" não achei — manda outro nome ou ignora`.
+- Item não reconhecido → **cadastro manual (uma vez)**:
+  ```
+  ❓ não conheço "whey Soldier". Cadastra pra eu lembrar sempre:
+  é por 100g ou por porção/scoop?  [100g] [porção]
+  → manda: kcal proteína carbo gordura  (ex.: 120 24 3 1.5)
+  → porção: também quantos g tem 1 scoop (opcional)
+  ```
+  Grava em `custom_foods`; daí em diante o item é reconhecido local, instantâneo.
+  O fluxo do `/comi` retoma com o item já calculado.
 - `✏️ corrigir` → usuário reedita a linha; reprocessa.
 - `✅ salvar` → grava em `meal_log`.
 - `/comi` sem texto → ajuda + exemplo.
@@ -138,7 +154,8 @@ Mensagem acompanha o PNG com botão `[🗑 apagar última]` (desfaz último regi
 ## Testes (TDD por camada, commits pequenos)
 
 - **`food_db`**: match exato, fuzzy acima/abaixo do limiar, alias, porção unitária,
-  alimento inexistente.
+  alimento inexistente; `custom_foods` tem prioridade sobre TACO; cálculo por
+  `base_unit` 100g vs porção/scoop.
 - **`meal_parser`**: uma linha, múltiplos itens, unidade `g` vs unitária, texto-lixo,
   item não reconhecido marcado corretamente.
 - **`targets`**: TDEE, ciclo descanso vs treino, EA nas três faixas, parâmetros do perfil.
@@ -151,6 +168,7 @@ Mensagem acompanha o PNG com botão `[🗑 apagar última]` (desfaz último regi
 
 - Histórico / gráfico de macros ao longo de dias.
 - Foto de comida, código de barras.
+- Busca online de alimentos (web/OpenFoodFacts) — substituído por cadastro manual.
 - Integrar nutrição na pontuação de prontidão.
 - Fallback de parse e texto-coach via API Anthropic.
 - Remoção do LLM local do resto do projeto (frente separada).
