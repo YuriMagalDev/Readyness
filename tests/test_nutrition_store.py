@@ -40,3 +40,11 @@ def test_day_plan(tmp_path):
     p = _db(tmp_path)
     store.set_day_plan(p, "2026-06-30", vai_treinar=1, vai_correr=0)
     assert store.get_day_plan(p, "2026-06-30")["vai_treinar"] == 1
+
+
+def test_save_recognized_sem_macros_nao_quebra(tmp_path):
+    p = _db(tmp_path)
+    store.save_meal_items(p, "2026-06-30", "almoço",
+                          [{"recognized": True, "food": "x", "grams": 10}])
+    t = store.day_totals(p, "2026-06-30")
+    assert t["kcal"] == 0 and t["n_meals"] == 1

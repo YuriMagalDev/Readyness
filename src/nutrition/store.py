@@ -39,7 +39,7 @@ def save_meal_items(db_path, date, meal, items):
     now = dt.datetime.now().isoformat()
     rows = [
         (date, meal, it.get("food"), it.get("grams"),
-         it["kcal"], it["p"], it["c"], it["g"], now)
+         it.get("kcal", 0.0), it.get("p", 0.0), it.get("c", 0.0), it.get("g", 0.0), now)
         for it in items if it.get("recognized")
     ]
     if not rows:
