@@ -47,6 +47,9 @@ class FoodDB:
                         "g": float(row["gordura"]),
                     },
                 }
+        self._custom = {}
+        for key, c in (custom or {}).items():
+            self._custom[normalize(key)] = c
 
     def lookup(self, name: str):
         """Lookup food by name (normalized); returns dict or None."""
@@ -55,6 +58,15 @@ class FoodDB:
     def match(self, name: str, threshold: int = 85):
         """Match food by exact, alias, or fuzzy; returns dict with score or None."""
         key = normalize(name)
+        if key in self._custom:
+            c = self._custom[key]
+            base = {"name": c["name"], "score": 100}
+            if c["base_unit"] == "porcao":
+                base["per_portion"] = c["macros"]
+                base["portion_g"] = c["porcao_g"]
+            else:
+                base["per100"] = c["macros"]
+            return base
         if key in self._by_name:
             item = self._by_name[key]
             return {**item, "score": 100}
@@ -71,4 +83,8 @@ class FoodDB:
 
     def portion_grams(self, name: str):
         """Get standard portion size in grams for a food, or None."""
-        return PORTIONS.get(normalize(name))
+        key = normalize(name)
+        c = self._custom.get(key)
+        if c and c.get("porcao_g"):
+            return c["porcao_g"]
+        return PORTIONS.get(key)

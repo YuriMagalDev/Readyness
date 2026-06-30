@@ -49,3 +49,26 @@ def test_porcao_unitaria():
     assert db.portion_grams("ovo") == 50
     assert db.portion_grams("banana") == 100
     assert db.portion_grams("arroz cozido") is None
+
+
+def test_custom_food_prioridade_e_porcao():
+    custom = {
+        "whey soldier": {
+            "name": "whey soldier", "base_unit": "porcao", "porcao_g": 30,
+            "macros": {"kcal": 120, "p": 24, "c": 3, "g": 1.5},
+        }
+    }
+    db = FoodDB(FIX, custom=custom)
+    m = db.match("whey soldier")
+    assert m["per_portion"]["p"] == 24
+    assert m["portion_g"] == 30
+    assert db.portion_grams("whey soldier") == 30
+
+
+def test_custom_100g_vira_per100():
+    custom = {
+        "tapioca": {"name": "tapioca", "base_unit": "100g", "porcao_g": None,
+                    "macros": {"kcal": 240, "p": 0.5, "c": 60, "g": 0.1}}
+    }
+    db = FoodDB(FIX, custom=custom)
+    assert db.match("tapioca")["per100"]["kcal"] == 240
