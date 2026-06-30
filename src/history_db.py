@@ -76,6 +76,21 @@ class HistoryDB:
                 "CREATE TABLE IF NOT EXISTS notified_activity ("
                 "activity_id INTEGER PRIMARY KEY, sent_at TEXT)"
             )
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS meal_log ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT NOT NULL, "
+                "meal TEXT, food TEXT, grams REAL, kcal REAL, p REAL, c REAL, g REAL, "
+                "logged_at TEXT NOT NULL)"
+            )
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS day_plan ("
+                "date TEXT PRIMARY KEY, vai_treinar INTEGER, vai_correr INTEGER, set_at TEXT)"
+            )
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS custom_foods ("
+                "name TEXT PRIMARY KEY, base_unit TEXT NOT NULL, porcao_g REAL, "
+                "kcal REAL, p REAL, c REAL, g REAL, created_at TEXT NOT NULL)"
+            )
 
     @staticmethod
     def _add_missing_columns(conn, table: str, columns: list, type_for):
