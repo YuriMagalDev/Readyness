@@ -19,6 +19,25 @@ from src.nutrition.label_vision import extract_label
 import src.nutrition.store as store
 
 
+_DP_MAP = {"dp:treino": (1, 0), "dp:corrida": (0, 1),
+           "dp:ambos": (1, 1), "dp:descanso": (0, 0)}
+
+
+def parse_day_plan_callback(data: str) -> tuple:
+    return _DP_MAP.get(data, (0, 0))
+
+
+async def on_day_plan_button(update, context):
+    if not _authorized(update, context):
+        return
+    q = update.callback_query
+    await q.answer()
+    treina, corre = parse_day_plan_callback(q.data)
+    day = dt.date.today().isoformat()
+    store.set_day_plan(context.bot_data["db_path"], day, treina, corre)
+    await q.edit_message_text("Anotado o plano de hoje. Use /dieta pra ver os alvos.")
+
+
 def parse_manual_macros(text: str):
     """Parse '120 24 3 1.5' -> {'kcal':120,'p':24,'c':3,'g':1.5}. Returns None on error."""
     parts = (text or "").replace(",", ".").split()
@@ -45,7 +64,9 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/saldo — saldo do dia\n/insights — leitura da IA\n"
         "/checkin — responder hidratação/energia/dor/alimentação\n"
         "/semana — resumo 7d\n/mes — resumo 30d\n"
-        "/plano — registrar/ver o plano da semana"
+        "/plano — registrar/ver o plano da semana\n"
+        "/comi — registrar refeição\n"
+        "/dieta — macros e energia do dia"
     )
 
 

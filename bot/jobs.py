@@ -1,5 +1,6 @@
 import datetime as dt
 import logging
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from bot import core, messages
@@ -136,6 +137,20 @@ async def job_briefing(context: ContextTypes.DEFAULT_TYPE):
         chat_id=cfg.chat_id, text=messages.format_briefing(data),
         parse_mode=messages.PARSE_MODE)
     db.set_state(_BRIEFING_DATE, day)
+
+
+async def job_day_plan(context: ContextTypes.DEFAULT_TYPE):
+    """07:30 — manda a pergunta do plano do dia com teclado inline dp:*."""
+    cfg = context.bot_data["cfg"]
+    kb = InlineKeyboardMarkup([[
+        InlineKeyboardButton("🏋 treinar", callback_data="dp:treino"),
+        InlineKeyboardButton("🏃 correr", callback_data="dp:corrida"),
+    ], [
+        InlineKeyboardButton("💪🏃 os 2", callback_data="dp:ambos"),
+        InlineKeyboardButton("😴 descanso", callback_data="dp:descanso"),
+    ]])
+    await context.bot.send_message(chat_id=cfg.chat_id,
+                                   text="Bom dia. Hoje você vai:", reply_markup=kb)
 
 
 async def job_alerts(context: ContextTypes.DEFAULT_TYPE):

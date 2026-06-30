@@ -1,9 +1,11 @@
 import datetime as dt
+import json
 import os
 from zoneinfo import ZoneInfo
 from telegram.ext import (
-    Application, CommandHandler, CallbackQueryHandler,
+    Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters,
 )
+import anthropic
 
 from bot.config import Config
 from bot import handlers, jobs
@@ -20,7 +22,14 @@ def build_app() -> Application:
     app = Application.builder().token(cfg.token).build()
     app.bot_data["cfg"] = cfg
     app.bot_data["db"] = HistoryDB(db_path=cfg.db_path)
+    app.bot_data["db_path"] = cfg.db_path
     app.bot_data["client"] = GarminClient()
+    try:
+        with open("athlete_profile.json", encoding="utf-8") as fh:
+            app.bot_data["profile"] = json.load(fh)
+    except FileNotFoundError:
+        app.bot_data["profile"] = {}
+    app.bot_data["anthropic"] = anthropic.Anthropic()
 
     app.add_handler(CommandHandler("start", handlers.cmd_start))
     app.add_handler(CommandHandler("saldo", handlers.cmd_saldo))
@@ -32,6 +41,12 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("atividades", handlers.cmd_atividades))
     app.add_handler(CallbackQueryHandler(handlers.on_activity_button, pattern=r"^act:"))
     app.add_handler(CommandHandler("plano", handlers.cmd_plano))
+    app.add_handler(CommandHandler("comi", handlers.cmd_comi))
+    app.add_handler(CommandHandler("dieta", handlers.cmd_dieta))
+    app.add_handler(CallbackQueryHandler(handlers.on_nutrition_button, pattern=r"^nut:"))
+    app.add_handler(CallbackQueryHandler(handlers.on_day_plan_button, pattern=r"^dp:"))
+    app.add_handler(MessageHandler(filters.PHOTO, handlers.on_photo))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handlers.on_text_macros))
 
     jq = app.job_queue
     for (h, m) in cfg.morning_slots:
@@ -40,6 +55,7 @@ def build_app() -> Application:
     jq.run_repeating(jobs.job_runs, interval=15 * 60, first=30)
     jq.run_daily(jobs.job_alerts, time=dt.time(hour=10, minute=0, tzinfo=TZ))
     jq.run_daily(jobs.job_briefing, time=dt.time(hour=19, minute=0, tzinfo=TZ))
+    jq.run_daily(jobs.job_day_plan, time=dt.time(hour=7, minute=30, tzinfo=TZ))
     return app
 
 
