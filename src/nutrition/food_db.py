@@ -15,6 +15,7 @@ ALIASES = {
     "frango": "peito de frango grelhado",
     "peito de frango": "peito de frango grelhado",
     "ovo": "ovo de galinha cozido",
+    "ovos": "ovo de galinha cozido",
     "feijao": "feijao carioca cozido",
     "banana": "banana prata",
     "arroz": "arroz cozido",
@@ -22,6 +23,7 @@ ALIASES = {
 
 PORTIONS = {
     "ovo": 50.0,
+    "ovos": 50.0,
     "banana": 100.0,
     "fatia de pao": 25.0,
     "pao": 25.0,
