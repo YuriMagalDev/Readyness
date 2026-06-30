@@ -74,6 +74,24 @@ def day_totals(db_path, date) -> dict:
             "n_meals": row["nm"], "last_at": row["last"]}
 
 
+def garmin_active_kcal(db_path, date):
+    """Return calories_active from daily_snapshot for *date*, or None if absent."""
+    with _session(db_path) as conn:
+        row = conn.execute(
+            "SELECT calories_active FROM daily_snapshot WHERE date=?", (date,)
+        ).fetchone()
+    return row["calories_active"] if row and row["calories_active"] is not None else None
+
+
+def garmin_total_kcal(db_path, date):
+    """Return calories_total from daily_snapshot for *date*, or None if absent."""
+    with _session(db_path) as conn:
+        row = conn.execute(
+            "SELECT calories_total FROM daily_snapshot WHERE date=?", (date,)
+        ).fetchone()
+    return row["calories_total"] if row and row["calories_total"] is not None else None
+
+
 def delete_last_meal_item(db_path, date) -> bool:
     with _session(db_path) as conn:
         row = conn.execute(

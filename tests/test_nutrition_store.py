@@ -48,3 +48,29 @@ def test_save_recognized_sem_macros_nao_quebra(tmp_path):
                           [{"recognized": True, "food": "x", "grams": 10}])
     t = store.day_totals(p, "2026-06-30")
     assert t["kcal"] == 0 and t["n_meals"] == 1
+
+
+def _insert_snapshot(db_path, date, calories_total=None, calories_active=None):
+    import sqlite3
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    conn.execute(
+        "INSERT OR REPLACE INTO daily_snapshot (date, calories_total, calories_active) "
+        "VALUES (?,?,?)",
+        (date, calories_total, calories_active),
+    )
+    conn.commit()
+    conn.close()
+
+
+def test_garmin_kcal_reads(tmp_path):
+    p = _db(tmp_path)
+    _insert_snapshot(p, "2026-06-29", calories_total=2800.0, calories_active=450.0)
+    assert store.garmin_total_kcal(p, "2026-06-29") == 2800.0
+    assert store.garmin_active_kcal(p, "2026-06-29") == 450.0
+
+
+def test_garmin_kcal_missing_date(tmp_path):
+    p = _db(tmp_path)
+    assert store.garmin_total_kcal(p, "2026-06-01") is None
+    assert store.garmin_active_kcal(p, "2026-06-01") is None
