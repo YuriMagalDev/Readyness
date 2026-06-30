@@ -1,5 +1,6 @@
 import datetime as dt
 import sqlite3
+from contextlib import contextmanager
 
 from src.nutrition.food_db import normalize
 
@@ -10,8 +11,18 @@ def _conn(db_path: str):
     return conn
 
 
+@contextmanager
+def _session(db_path):
+    conn = _conn(db_path)
+    try:
+        yield conn
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def add_custom_food(db_path, name, base_unit, porcao_g, kcal, p, c, g):
-    with _conn(db_path) as conn:
+    with _session(db_path) as conn:
         conn.execute(
             "INSERT OR REPLACE INTO custom_foods "
             "(name, base_unit, porcao_g, kcal, p, c, g, created_at) "
@@ -22,7 +33,7 @@ def add_custom_food(db_path, name, base_unit, porcao_g, kcal, p, c, g):
 
 
 def get_custom_foods(db_path) -> dict:
-    with _conn(db_path) as conn:
+    with _session(db_path) as conn:
         rows = conn.execute("SELECT * FROM custom_foods").fetchall()
     out = {}
     for r in rows:
@@ -44,7 +55,7 @@ def save_meal_items(db_path, date, meal, items):
     ]
     if not rows:
         return
-    with _conn(db_path) as conn:
+    with _session(db_path) as conn:
         conn.executemany(
             "INSERT INTO meal_log (date, meal, food, grams, kcal, p, c, g, logged_at) "
             "VALUES (?,?,?,?,?,?,?,?,?)", rows,
@@ -52,7 +63,7 @@ def save_meal_items(db_path, date, meal, items):
 
 
 def day_totals(db_path, date) -> dict:
-    with _conn(db_path) as conn:
+    with _session(db_path) as conn:
         row = conn.execute(
             "SELECT COALESCE(SUM(kcal),0) k, COALESCE(SUM(p),0) p, "
             "COALESCE(SUM(c),0) c, COALESCE(SUM(g),0) g, "
@@ -64,7 +75,7 @@ def day_totals(db_path, date) -> dict:
 
 
 def delete_last_meal_item(db_path, date) -> bool:
-    with _conn(db_path) as conn:
+    with _session(db_path) as conn:
         row = conn.execute(
             "SELECT id FROM meal_log WHERE date=? ORDER BY id DESC LIMIT 1", (date,),
         ).fetchone()
@@ -75,7 +86,7 @@ def delete_last_meal_item(db_path, date) -> bool:
 
 
 def set_day_plan(db_path, date, vai_treinar, vai_correr):
-    with _conn(db_path) as conn:
+    with _session(db_path) as conn:
         conn.execute(
             "INSERT OR REPLACE INTO day_plan (date, vai_treinar, vai_correr, set_at) "
             "VALUES (?,?,?,?)",
@@ -84,6 +95,6 @@ def set_day_plan(db_path, date, vai_treinar, vai_correr):
 
 
 def get_day_plan(db_path, date):
-    with _conn(db_path) as conn:
+    with _session(db_path) as conn:
         row = conn.execute("SELECT * FROM day_plan WHERE date=?", (date,)).fetchone()
     return dict(row) if row else None

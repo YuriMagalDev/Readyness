@@ -31,7 +31,7 @@ def _parse_item(raw: str, db) -> dict:
             qty = grams / hit["portion_g"]
             return {"raw": raw, "food": hit["name"], "grams": grams,
                     "recognized": True, **_from_portion(hit, qty)}
-        return {"raw": raw, "recognized": False}
+        return {"raw": raw, "name": name, "recognized": False}
     u = _UNIT.match(raw)
     if u:
         qty, name = _num(u.group(1)), u.group(2)
@@ -47,7 +47,7 @@ def _parse_item(raw: str, db) -> dict:
             grams = qty * pg
             return {"raw": raw, "food": hit2["name"], "grams": grams,
                     "recognized": True, **_macros(hit2["per100"], grams)}
-        return {"raw": raw, "recognized": False}
+        return {"raw": raw, "name": name, "recognized": False}
     return {"raw": raw, "recognized": False}
 
 

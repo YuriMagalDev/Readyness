@@ -46,6 +46,14 @@ def test_parse_scoop_custom():
     assert item["p"] == 48
 
 
+def test_unrecognized_carrega_nome_limpo():
+    db = FoodDB("tests/fixtures/taco_min.csv")
+    out = parse_meal("100g patinho", db)
+    it = out["items"][0]
+    assert it["recognized"] is False
+    assert it["name"] == "patinho"
+
+
 def test_parse_custom_em_gramas():
     db = FoodDB("tests/fixtures/taco_min.csv", custom=CUSTOM)
     out = parse_meal("60g whey soldier", db)   # 60g = 2 porções de 30g

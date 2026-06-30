@@ -66,7 +66,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/semana — resumo 7d\n/mes — resumo 30d\n"
         "/plano — registrar/ver o plano da semana\n"
         "/comi — registrar refeição\n"
-        "/dieta — macros e energia do dia"
+        "/dieta — macros e energia do dia\n"
+        "/cancelar — cancelar registro em andamento"
     )
 
 
@@ -243,8 +244,7 @@ async def cmd_comi(update, context):
         InlineKeyboardButton("✏️ corrigir", callback_data="nut:edit"),
     ]
     if unrecognized:
-        first_raw = unrecognized[0].get("raw", "")
-        context.user_data["pending_food"] = first_raw
+        context.user_data["pending_food"] = unrecognized[0].get("name") or unrecognized[0].get("raw", "")
         buttons += [
             InlineKeyboardButton("📷 foto da tabela", callback_data="nut:photo"),
             InlineKeyboardButton("⌨ digitar macros", callback_data="nut:manual"),
@@ -268,9 +268,13 @@ async def on_nutrition_button(update, context):
             return
         store.save_meal_items(db_path, day, parsed.get("meal"), parsed["items"])
         context.user_data.pop("pending_meal", None)
+        context.user_data.pop("pending_food", None)
+        context.user_data.pop("awaiting_manual", None)
         t = store.day_totals(db_path, day)
         await q.edit_message_text(f"Salvo. Hoje: {round(t['kcal'])} kcal · P {t['p']:.0f}")
     elif q.data == "nut:edit":
+        context.user_data.pop("pending_food", None)
+        context.user_data.pop("awaiting_manual", None)
         await q.edit_message_text("Reenvie a refeição com /comi corrigindo o item.")
     elif q.data == "nut:del":
         ok = store.delete_last_meal_item(db_path, day)
@@ -281,6 +285,8 @@ async def on_nutrition_button(update, context):
             f"Manda a foto da tabela nutricional de '{name}'.")
     elif q.data == "nut:foodsave":
         data = context.user_data.pop("pending_custom", None)
+        context.user_data.pop("pending_food", None)
+        context.user_data.pop("awaiting_manual", None)
         if data:
             store.add_custom_food(db_path, data["name"], data["base_unit"],
                                   data.get("porcao_g"), data["kcal"], data["p"],
@@ -369,6 +375,14 @@ async def on_text_macros(update, context):
         f"C {macros['c']:.0f} · G {macros['g']:.0f}. Confere?",
         reply_markup=kb,
     )
+
+
+async def cmd_cancelar(update, context):
+    if not _authorized(update, context):
+        return
+    for k in ("pending_meal", "pending_food", "pending_custom", "awaiting_manual"):
+        context.user_data.pop(k, None)
+    await update.message.reply_text("Ok, cancelei o registro em andamento.")
 
 
 async def on_activity_button(update: Update, context: ContextTypes.DEFAULT_TYPE):

@@ -46,6 +46,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("plano", handlers.cmd_plano))
     app.add_handler(CommandHandler("comi", handlers.cmd_comi))
     app.add_handler(CommandHandler("dieta", handlers.cmd_dieta))
+    app.add_handler(CommandHandler("cancelar", handlers.cmd_cancelar))
     app.add_handler(CallbackQueryHandler(handlers.on_nutrition_button, pattern=r"^nut:"))
     app.add_handler(CallbackQueryHandler(handlers.on_day_plan_button, pattern=r"^dp:"))
     app.add_handler(MessageHandler(filters.PHOTO, handlers.on_photo))
