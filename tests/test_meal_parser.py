@@ -31,3 +31,23 @@ def test_parse_sem_rotulo_e_lixo():
     out = parse_meal("blah blah", DB)
     assert out["meal"] is None
     assert out["items"][0]["recognized"] is False
+
+
+CUSTOM = {"whey soldier": {"name": "whey soldier", "base_unit": "porcao",
+                           "porcao_g": 30, "macros": {"kcal": 120, "p": 24, "c": 3, "g": 1.5}}}
+
+
+def test_parse_scoop_custom():
+    db = FoodDB("tests/fixtures/taco_min.csv", custom=CUSTOM)
+    out = parse_meal("2 scoops whey soldier", db)
+    item = out["items"][0]
+    assert item["recognized"] is True
+    assert item["kcal"] == 240          # 2 * 120
+    assert item["p"] == 48
+
+
+def test_parse_custom_em_gramas():
+    db = FoodDB("tests/fixtures/taco_min.csv", custom=CUSTOM)
+    out = parse_meal("60g whey soldier", db)   # 60g = 2 porções de 30g
+    item = out["items"][0]
+    assert round(item["kcal"]) == 240
