@@ -14,9 +14,11 @@ Usuário único (Yuri). Stats no `athlete_profile.json`: 25 anos, 108 kg, 181 cm
 → massa magra (LBM) ≈ **75.6 kg**. Meta: hipertrofia / recomposição (leve déficit).
 
 Mudança de premissa do projeto: **LLM local sai**. Chave da API Anthropic continua
-disponível. Para nutrição o parsing é **100% determinístico** (tabela TACO); a API entra
-só como *fallback* de parse e texto-coach, em frente futura. Isso reverte a regra antiga
-do CLAUDE.md "nada de API paga" — atualizar o CLAUDE.md em tarefa separada.
+disponível. O parsing de refeição é **100% determinístico** (tabela TACO). A API
+Anthropic entra **só num ponto**: ler a **foto da tabela nutricional** (Claude vision)
+quando você cadastra um alimento novo — uma chamada por produto, resultado cacheado em
+`custom_foods` pra sempre. Isso reverte a regra antiga do CLAUDE.md "nada de API paga"
+— atualizar o CLAUDE.md em tarefa separada.
 
 Princípio mantido do projeto: **número sai de fonte real (tabela TACO), nunca inventado**.
 Match abaixo do limiar = pergunta ao usuário, jamais chuta valor.
@@ -39,6 +41,10 @@ Módulo novo `src/nutrition/`, isolado, testável por unidade:
 - **`meal_parser.py`** — função pura. Texto da refeição → lista de itens
   `{food, grams, kcal, p, c, g}`. Patterns: `100g arroz`, `200 g peito de frango`,
   `2 ovos`, `1 fatia pão`. Itens sem match viram `{raw, recognized: false}`.
+- **`label_vision.py`** — cadastro de alimento novo por **foto da tabela nutricional**.
+  Recebe a imagem, chama a API Anthropic (Claude vision) com prompt pedindo JSON
+  `{name, base_unit, porcao_g, kcal, p, c, g}`, parse tolerante (fallback: pede cadastro
+  manual). Único ponto do módulo que toca rede/API. Cliente Anthropic isolado aqui.
 - **`targets.py`** — funções puras de alvo do dia e energia:
   - TDEE base (sem exercício) via Katch-McArdle sobre LBM;
   - alvo ciclado (descanso vs treino), proteína fixa, gordura fixa, carbo = resto;
@@ -125,13 +131,19 @@ Bot **ecoa antes de salvar** (passo de confirmação — substitui a segurança 
 [✅ salvar] [✏️ corrigir]
 ```
 
-- Item não reconhecido → **cadastro manual (uma vez)**:
+- Item não reconhecido → **cadastro (uma vez)**, dois caminhos, mesmo destino
+  (`custom_foods`):
   ```
-  ❓ não conheço "whey Soldier". Cadastra pra eu lembrar sempre:
-  é por 100g ou por porção/scoop?  [100g] [porção]
-  → manda: kcal proteína carbo gordura  (ex.: 120 24 3 1.5)
-  → porção: também quantos g tem 1 scoop (opcional)
+  ❓ não conheço "whey Soldier".
+     [📷 foto da tabela]   [⌨ digitar macros]
   ```
+  - **📷 foto da tabela** (caminho principal): você manda a foto da tabela nutricional.
+    Claude vision extrai → bot mostra "li isto: porção 30g · 120 kcal · P 24 · C 3 ·
+    G 1.5 — confere? [✅/✏️]" → salva. Leitura ruim/sem internet → cai no digitar.
+  - **⌨ digitar macros** (fallback): é por 100g ou por porção/scoop? `[100g] [porção]`
+    → manda `kcal proteína carbo gordura` (ex.: `120 24 3 1.5`); porção → também
+    quantos g tem 1 scoop (opcional).
+
   Grava em `custom_foods`; daí em diante o item é reconhecido local, instantâneo.
   O fluxo do `/comi` retoma com o item já calculado.
 - `✏️ corrigir` → usuário reedita a linha; reprocessa.
@@ -159,7 +171,11 @@ Mensagem acompanha o PNG com botão `[🗑 apagar última]` (desfaz último regi
 - **`meal_parser`**: uma linha, múltiplos itens, unidade `g` vs unitária, texto-lixo,
   item não reconhecido marcado corretamente.
 - **`targets`**: TDEE, ciclo descanso vs treino, EA nas três faixas, parâmetros do perfil.
-- **handlers**: confirma → salva, corrige → reprocessa, `/dieta` agrega o dia certo,
+- **`label_vision`**: parse tolerante do JSON do Claude (campos faltando, vírgula
+  decimal, coluna por porção vs por 100g); resposta inválida → sinaliza fallback manual.
+  (Mock da chamada de API nos testes — não bate na rede.)
+- **handlers**: confirma → salva, corrige → reprocessa, item desconhecido oferece os dois
+  caminhos, foto → vision → confirma → `custom_foods`, `/dieta` agrega o dia certo,
   apagar última remove só o último, callback da manhã grava `day_plan`.
 
 ---
@@ -167,9 +183,9 @@ Mensagem acompanha o PNG com botão `[🗑 apagar última]` (desfaz último regi
 ## Fora de escopo (YAGNI — frentes futuras)
 
 - Histórico / gráfico de macros ao longo de dias.
-- Foto de comida, código de barras.
-- Busca online de alimentos (web/OpenFoodFacts) — substituído por cadastro manual.
+- Foto do **prato** (estimar porção por imagem), código de barras / OpenFoodFacts —
+  a foto da **tabela nutricional** cobre o cadastro melhor.
 - Integrar nutrição na pontuação de prontidão.
-- Fallback de parse e texto-coach via API Anthropic.
+- Fallback de parse da refeição e texto-coach via API Anthropic.
 - Remoção do LLM local do resto do projeto (frente separada).
 - Reestruturar a saída diária em camadas (veredito → motivo → plano) (frente separada).
