@@ -4,7 +4,7 @@ from telegram.ext import ContextTypes
 
 from bot import core, messages
 from bot.checkin import CHECKINS, scale_keyboard, parse_callback, prompt_text
-from bot.charts import recovery_chart_png, nutrition_chart_png
+from bot.charts import recovery_chart_png, nutrition_chart_png, nutrition_panel_png
 from bot.nutrition import load_food_db, today_panel
 from bot.nutrition_format import format_meal_confirm
 from bot.runs import filter_runs
@@ -308,8 +308,9 @@ async def cmd_dieta(update, context):
     db_path = context.bot_data["db_path"]
     day = dt.date.today().isoformat()
     panel = today_panel(db_path, _profile(context), day)
-    titulo = "Hoje (dia treino)" if panel["training"] else "Hoje (descanso)"
-    png = nutrition_chart_png(panel["totals"], panel["target"], panel["ea"], titulo=titulo)
+    training_today = panel["today"]["training"]
+    titulo = "Hoje (dia treino)" if training_today else "Hoje (descanso)"
+    png = nutrition_panel_png(panel, titulo=titulo)
     kb = InlineKeyboardMarkup([[InlineKeyboardButton("🗑 apagar última", callback_data="nut:del")]])
     await update.message.reply_photo(png, reply_markup=kb)
 
