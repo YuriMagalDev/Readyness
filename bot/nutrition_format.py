@@ -1,3 +1,30 @@
+_FAIXA_EMOJI = {"verde": "🟢", "amarelo": "🟡", "vermelho": "🔴"}
+
+
+def format_nutri_context(yesterday: dict) -> str | None:
+    """Linha de contexto de nutrição (energia + proteína de ontem fechado) pro /saldo.
+
+    Info pura — NÃO altera o veredito. Retorna None quando não há refeição registrada
+    ontem (nada útil a mostrar).
+    """
+    eaten = (yesterday or {}).get("eaten") or {}
+    if not (eaten.get("kcal") or eaten.get("p")):
+        return None
+    ea = (yesterday or {}).get("ea") or {}
+    emoji = _FAIXA_EMOJI.get(ea.get("faixa"), "")
+    p = eaten.get("p") or 0.0
+    alvo = (yesterday or {}).get("protein_target") or 0
+    parte_prot = f"proteína {p:.0f}/{alvo:.0f}g"
+    if alvo and p < alvo:
+        parte_prot += f" (faltaram {alvo - p:.0f})"
+    partes = [f"energia {emoji} {ea.get('ea', 0):.0f}".replace("  ", " "), parte_prot]
+    saldo = ((yesterday or {}).get("balance") or {}).get("saldo")
+    if saldo is not None:
+        sinal = "+" if saldo >= 0 else "−"
+        partes.append(f"saldo {sinal}{abs(saldo):.0f} kcal")
+    return "📊 Ontem (contexto, não muda o veredito): " + " · ".join(partes)
+
+
 def format_meal_confirm(parsed: dict) -> str:
     meal = (parsed.get("meal") or "Refeição").capitalize()
     lines = [f"🍽 {meal}"]

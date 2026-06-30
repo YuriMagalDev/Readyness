@@ -6,7 +6,7 @@ from bot import core, messages
 from bot.checkin import CHECKINS, scale_keyboard, parse_callback, prompt_text
 from bot.charts import recovery_chart_png, nutrition_chart_png, nutrition_panel_png
 from bot.nutrition import load_food_db, today_panel
-from bot.nutrition_format import format_meal_confirm
+from bot.nutrition_format import format_meal_confirm, format_nutri_context
 from bot.runs import filter_runs
 from src.services_core import save_checkin, build_trends, build_run_detail
 from src.extractors import activity_from_garmin
@@ -86,6 +86,14 @@ async def cmd_saldo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         analysis = core.daily_analysis(db, day)
         txt = messages.format_saldo(analysis["veredito"], met, sleep=sleep)
+        # nutrição = contexto informativo (não muda o veredito); nunca derruba o /saldo
+        try:
+            panel = today_panel(context.bot_data["db_path"], _profile(context), day)
+            nutri = format_nutri_context(panel["yesterday"])
+            if nutri:
+                txt += "\n\n" + nutri
+        except Exception:  # noqa: BLE001 — sem dados de nutrição: saldo segue normal
+            pass
         await update.message.reply_text(txt, parse_mode=messages.PARSE_MODE)
     except Exception as e:  # noqa: BLE001
         await update.message.reply_text(f"Não consegui montar o saldo agora ({e}).")
