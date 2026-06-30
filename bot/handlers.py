@@ -265,6 +265,8 @@ async def on_nutrition_button(update, context):
                                   data.get("porcao_g"), data["kcal"], data["p"],
                                   data["c"], data["g"])
             await q.edit_message_text(f"Cadastrado: {data['name']}. Refaça o /comi.")
+        else:
+            await q.edit_message_text("Sessão expirada. Refaça o /comi.")
     elif q.data == "nut:manual":
         name = (context.user_data.get("pending_custom") or {}).get("name") \
             or context.user_data.get("pending_food")
@@ -327,11 +329,25 @@ async def on_text_macros(update, context):
     if not macros:
         await update.message.reply_text("Formato: kcal proteína carbo gordura (ex.: 120 24 3 1.5)")
         return
-    db_path = context.bot_data["db_path"]
-    store.add_custom_food(db_path, name, "100g", None,
-                          macros["kcal"], macros["p"], macros["c"], macros["g"])
+    context.user_data["pending_custom"] = {
+        "name": name,
+        "base_unit": "100g",
+        "porcao_g": None,
+        "kcal": macros["kcal"],
+        "p": macros["p"],
+        "c": macros["c"],
+        "g": macros["g"],
+    }
     context.user_data.pop("awaiting_manual", None)
-    await update.message.reply_text(f"Cadastrado: {name}. Refaça o /comi.")
+    kb = InlineKeyboardMarkup([[
+        InlineKeyboardButton("✅ salvar", callback_data="nut:foodsave"),
+        InlineKeyboardButton("✏️ corrigir", callback_data="nut:manual"),
+    ]])
+    await update.message.reply_text(
+        f"{name}: {round(macros['kcal'])} kcal · P {macros['p']:.0f} · "
+        f"C {macros['c']:.0f} · G {macros['g']:.0f}. Confere?",
+        reply_markup=kb,
+    )
 
 
 async def on_activity_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
