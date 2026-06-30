@@ -3,71 +3,92 @@
 ## O que é
 Painel **pessoal** (1 usuário: Yuri) de coaching de corrida + hipertrofia, rodando no
 **desktop**. Puxa dados do Garmin Connect (Forerunner 55), centraliza num catálogo de
-métricas com frescor, e gera uma análise diária com uma **LLM local** (sem provedor pago).
-Responde todo dia: "posso treinar hoje e em que intensidade?".
+métricas com frescor, e gera uma análise diária. Integra nutrição (TACO + tabela manual)
+com ciclo de calorias por dia de treino. Responde todo dia: "posso treinar hoje e em
+que intensidade?" e "qual é meu alvo de macros?".
 
 Sem login, sem cadastro, sem multiusuário, sem marketing. Abre direto no painel do dia.
 
 > **Contexto completo da reformulação está em `rebuild/`** — leia antes de mudanças grandes:
-> `01-CORE.md` (núcleo), `02-DESIGN.md` (UI validada), `03-LOCAL-LLM.md` (LLM local),
-> `04-CLAUDE-DESIGN-BRIEF.md` (brief criativo de UI).
+> `01-CORE.md` (núcleo), `02-DESIGN.md` (UI validada), `04-CLAUDE-DESIGN-BRIEF.md` (brief criativo de UI).
 
 ## Princípio que guia tudo: CONFIANÇA
-1. **Frescor por métrica** — todo número mostra "de quando é" (fresco / velho / ausente /
-   estimado). Visível, parte da identidade, não rótulo escondido.
-2. **Análise rastreável** — todo insight da LLM cita as métricas que o geraram; insight sem
-   fonte real é **descartado**.
-3. **Veredito por regra** — o semáforo "treinar hoje?" é **determinístico** (regras sobre FC,
-   bateria, sono), nunca opinião da LLM. Treino do dia não depende da LLM estar de pé.
+1. **Números de fonte real** — todo número vem de TACO (tabela oficial de composição), cadastro
+   manual (100g ou porção), ou Garmin. Nenhum número é inventado pela LLM.
+2. **Frescor e transparência** — que comida tem macro conforme, quantas horas atrás.
+3. **Veredito determinístico** — calorias e macros saem de cálculo puro (perfil + treino do dia),
+   nunca opinião. O bot responde mesmo sem API (foto fica indisponível, mas /comi manual funciona).
 
 ## Stack
 - Python 3.11+, FastAPI + uvicorn (1 usuário, IO-bound → performance da linguagem não é
-  gargalo; o gargalo é rede Garmin + inferência local).
-- SQLite local (cache + histórico).
-- `garminconnect` (SSO) pra dados.
-- **LLM local** via Ollama (`http://localhost:11434`) — ver `rebuild/03-LOCAL-LLM.md`.
+  gargalo; o gargalo é rede Garmin).
+- SQLite local (cache + histórico + refeições + alimentos custom).
+- `garminconnect` (SSO) pra dados de corrida/sono/FC.
+- Telegram Bot (python-telegram-bot) para registro de refeições e plano do dia.
+- **Anthropic API** (`claude-haiku` via vision) **apenas** em `src/nutrition/label_vision.py`
+  (extrai macros de foto da tabela nutricional); bot sobe mesmo sem `ANTHROPIC_API_KEY`
+  (cadastro por foto fica indisponível, /comi manual funciona).
 - Frontend React/TypeScript (Vite), servido pelo FastAPI em produção.
 
-## Arquitetura em 3 camadas (construir de baixo pra cima)
-1. **Dados + Confiança** — catálogo curado (~20 métricas) em código; tabela longa
-   `metric_value(date, metric_key, value, measured_at, source)`; coletores puros por domínio;
-   frescor calculado na leitura; check-ins manuais 1-5 (hidratação/energia/soreness/comida).
-2. **Análise rastreável** — veredito determinístico (regra) + insights da LLM com citações
-   validadas (descarta key inventada / insight sem fonte). Cache por dia.
-3. **UI "Hoje"** — limpa: veredito-herói + 3-5 métricas-chave (com frescor) + insights com
-   chips de fonte. NÃO despejar a grade completa aqui (vai numa aba "Métricas").
+## Arquitetura em 3 camadas
+1. **Dados** — Garmin (corrida/sono/FC), TACO (13.000+ alimentos brasileiro), custom_foods
+   (cadastro manual 100g ou porção). Tabela `meal_item(date, meal, food_name, qty, unit, kcal, p, c, g)`.
+   Frescor calculado na leitura; check-ins manuais 1-5 (hidratação/energia/soreness).
+2. **Lógica** — veredito de readiness (FC, sono, bateria do relógio → treinar/correr/descansar).
+   Ciclo de calorias: perfil (108kg/30%bodyfat) + dia de treino (binário: treina/não treina) → alvo
+   kcal e macros. Sem LLM, sem opinião — cálculo puro.
+3. **Painel + Bot** — FastAPI: resumo do dia (readiness + macros). Telegram: `/comi` (registra
+   refeição com confirmação), `/dieta` (gráfico anéis: kcal + macros + EA), pergunta matinal
+   "/plano?" (cicla calorias pro dia). Foto → Anthropic vision → extrai macros (ou digita manual).
 
-## LLM local (regra obrigatória)
-- Toda geração de texto passa por `src/llm.py` (cliente Ollama). Nada de API paga, nada de
-  `anthropic`/`cache_control`.
-- Roteamento por env: `LLM_MODEL_QUICK` (análise diária, 90%) vs `LLM_MODEL_DEEP` (planos).
-- Saída JSON (`format:"json"` no Ollama) + parse tolerante + fallback (insights=[]).
-- Modelo local alucina mais → manter a validação de citações sempre.
+## Visão de Rótulo (label_vision.py)
+- **Única** função paga: `src/nutrition/label_vision.py` chama Claude vision (Haiku) pra
+  ler foto da tabela nutricional brasileira (ANVISA).
+- Sem foto: cadastro manual (kcal + macros digitados). Bot sobe sem `ANTHROPIC_API_KEY`,
+  a feature de foto fica indisponível, /comi manual funciona sempre.
+- Parsing rigoroso: extrai nome/base_unit/porcao_g/kcal/p/c/g do JSON. Resposta sem JSON
+  válido = fallback para digitação manual.
 
-## Perfil do atleta (`athlete_profile.json`)
-Arquivo local obrigatório, incluído como contexto em todo prompt. Campos nulos: **perguntar
-ao usuário, nunca inventar**. Nunca enviar à API do Garmin.
+## Perfil do Atleta (`athlete_profile.json`)
+Arquivo local obrigatório: peso, % de gordura, meta de proteína diária, faixa de kcal por
+tipo de dia. Campos nulos: **perguntar ao usuário, nunca inventar**. Nunca enviar à API
+do Garmin. Usado em `src/nutrition/targets.py` pra calcular alvo do dia.
 
 ## Regras pro Claude Code
-1. **Cache primeiro** — nunca rechamar Garmin (TTL ~6h) nem a LLM se já tem dado fresco do dia.
-2. **Frescor sempre visível** por métrica.
-3. **Insight sem fonte = descartado.** Veredito = regra, não LLM.
-4. **Campos nulos do perfil** → perguntar antes de gerar planos.
-5. **Sem dado sensível em log** (mascarar email/senha).
+1. **Cache primeiro** — nunca rechamar Garmin (TTL ~6h).
+2. **Frescor sempre visível** por métrica e por comida (horário/fonte).
+3. **Números de fonte real só** — Garmin, TACO, ou cadastro manual. Nenhuma estimativa
+   da LLM em números; se Anthropic vision falha, fallback para digitação.
+4. **Campos nulos do perfil** → perguntar antes de gerar alvo de calorias.
+5. **Sem dado sensível em log** (mascarar email/senha/API keys).
 6. **Forerunner 55**: sem HRV contínuo confiável, sem SpO2 contínuo, sem training status
    estável — essas métricas costumam vir ausentes; o app tem que ficar bom com metade vazia.
 7. **TDD por camada, commits pequenos.** Migração sem quebrar tela antiga = dual-write.
 8. **Frontend robusto**: mapas de config sempre com fallback (status desconhecido → neutro,
    nunca tela preta). Tipos TS derivados do JSON real da API (contrato front↔back tem que bater).
+9. **Bot resiliente**: sem ANTHROPIC_API_KEY a feature de foto fica indisponível, /comi manual
+   funciona sempre. Sem Garmin (429): readiness sai do DB, painel monta mesmo assim.
 
 ## Variáveis de ambiente (.env)
 ```
+# Garmin
 GARMIN_EMAIL=...
 GARMIN_PASSWORD=...
-CACHE_TTL_HOURS=6
-LLM_BASE_URL=http://localhost:11434
-LLM_MODEL_QUICK=qwen2.5:7b
-LLM_MODEL_DEEP=llama3.1:8b
+GARMINTOKENS=~/.garminconnect  # onde guardar token Garmin (loga 1x)
+
+# Telegram bot
+TELEGRAM_TOKEN=...
+TELEGRAM_CHAT_ID=...
+
+# Anthropic (opcional: sem ela, cadastro por foto fica indisponível)
+ANTHROPIC_API_KEY=...
+VISION_MODEL=claude-haiku-4-5-20251001  # default pra leitura de rótulos
+
+# Config
+TZ=America/Sao_Paulo
+DB_PATH=history.db
+MORNING_SLOTS=09:30,12:00,14:00  # horários de tentativa do saldo matinal
+CHECKIN_HOUR=21
 ```
 
 ## Estrutura
@@ -77,14 +98,43 @@ src/
   collectors/         # normalizadores puros por domínio
   garmin_client.py    # wrappers cacheados + retry rate-limit
   history_db.py · ingestor.py
-  daily_analysis.py   # veredito (regra) + insights (LLM local + validação)
-  llm.py              # cliente Ollama
-api/  services.py · main.py
+  daily_analysis.py   # veredito determinístico (FC, sono, bateria)
+  readiness_score.py  # ACWR, RC, score final
+  
+  nutrition/
+    config.py         # nutrition_config(profile) → ranges kcal/macros
+    targets.py        # day_target() + energy_availability()
+    food_db.py        # FoodDB: TACO lookup + custom_foods
+    meal_parser.py    # parse_meal(text, fdb) → items (recognized, unrecognized)
+    label_vision.py   # extract_label(image, client, model) → {name, base_unit, kcal, p, c, g}
+    store.py          # salvar/ler refeições, custom foods, plano do dia
+    data/taco.csv     # tabela oficial de composição (TACO)
+
+api/  services.py · main.py · (ReadinessDB, nutrition endpoints TBD)
 web/  React/Vite (tela Hoje + aba Métricas)
+
+bot/
+  main.py             # build_app(): handlers + jobs
+  config.py           # Config.from_env()
+  handlers.py         # cmd_*, on_* callbacks (start, saldo, checkin, comi, dieta, plano, etc)
+  nutrition.py        # load_food_db(), today_panel()
+  nutrition_format.py # format_meal_confirm()
+  jobs.py             # job_morning, job_checkin, job_day_plan, job_briefing, etc
+  messages.py         # formatação de texto/markup
+  charts.py           # recovery_chart_png(), nutrition_chart_png()
+  checkin.py          # CHECKINS config, keyboard
+  runs.py             # filtro de atividades
+  core.py             # load_context(), collect_metrics(), daily_analysis()
+  state.py · wake_detector.py
+
 rebuild/  prompts-fonte da reformulação (01..04)
 ```
 
-## Deploy desktop (Windows)
-`iniciar.bat` na raiz: entra na pasta, builda o front se faltar, sobe
-`uvicorn api.main:app --port 8000 --reload`, abre o navegador. Ollama precisa estar rodando.
-Parar: Ctrl+C. Trocou build → hard-refresh (Ctrl+Shift+R) no navegador.
+## Deploy
+### Desktop (Windows)
+`iniciar.bat` na raiz: entra na pasta, builda o front se faltar, sobe o bot (token Telegram
+obrigatório) e o painel FastAPI em paralelo. Abre o navegador no painel.
+- Parar: Ctrl+C (mata ambos).
+- Sem Garmin (429, relogin): painel monta mesmo assim (readiness do cache).
+- Sem Anthropic: bot sobe, /comi manual funciona, foto fica indisponível.
+- Trocou build front → hard-refresh no navegador (Ctrl+Shift+R).
