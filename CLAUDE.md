@@ -31,8 +31,9 @@ Sem login, sem cadastro, sem multiusuário, sem marketing. Abre direto no painel
 - Frontend React/TypeScript (Vite), servido pelo FastAPI em produção.
 
 ## Arquitetura em 3 camadas
-1. **Dados** — Garmin (corrida/sono/FC), TACO (13.000+ alimentos brasileiro), custom_foods
-   (cadastro manual 100g ou porção). Tabela `meal_item(date, meal, food_name, qty, unit, kcal, p, c, g)`.
+1. **Dados** — Garmin (corrida/sono/FC), TACO (seed curado ~40 alimentos hoje; import completo
+   da tabela oficial é tarefa futura), custom_foods (cadastro manual 100g ou porção).
+   Tabela `meal_log(date, meal, food, grams, kcal, p, c, g, logged_at)`.
    Frescor calculado na leitura; check-ins manuais 1-5 (hidratação/energia/soreness).
 2. **Lógica** — veredito de readiness (FC, sono, bateria do relógio → treinar/correr/descansar).
    Ciclo de calorias: perfil (108kg/30%bodyfat) + dia de treino (binário: treina/não treina) → alvo
@@ -108,7 +109,7 @@ src/
     meal_parser.py    # parse_meal(text, fdb) → items (recognized, unrecognized)
     label_vision.py   # extract_label(image, client, model) → {name, base_unit, kcal, p, c, g}
     store.py          # salvar/ler refeições, custom foods, plano do dia
-    data/taco.csv     # tabela oficial de composição (TACO)
+    data/taco.csv     # seed curado da TACO (~40 itens; import completo é tarefa futura)
 
 api/  services.py · main.py · (ReadinessDB, nutrition endpoints TBD)
 web/  React/Vite (tela Hoje + aba Métricas)
