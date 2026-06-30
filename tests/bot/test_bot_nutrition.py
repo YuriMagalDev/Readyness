@@ -82,3 +82,15 @@ def test_today_panel_yesterday_no_snapshot(tmp_path):
     yd = panel["yesterday"]
     assert yd["burn"] is None
     assert yd["balance"]["saldo"] is None
+
+
+def test_load_food_db_prod_resolve_comuns(tmp_path):
+    # smoke de integração com a TACO real + aliases curados
+    p = _db(tmp_path)
+    db = load_food_db(p)  # usa src/nutrition/data/taco.csv + aliases.csv
+    for termo in ["arroz", "frango", "ovo", "feijao", "batata doce", "banana"]:
+        m = db.match(termo)
+        assert m is not None, f"{termo} não resolveu"
+        assert m["per100"]["kcal"] > 0
+    # alias aponta pro peito grelhado, não pra coxinha frita
+    assert "peito" in db.match("frango")["name"].lower()

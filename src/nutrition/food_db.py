@@ -30,10 +30,25 @@ PORTIONS = {
 }
 
 
+def load_aliases(csv_path: str) -> dict:
+    """Carrega aliases termo->nome de um CSV (colunas: termo,nome). Falta de arquivo = {}."""
+    out = {}
+    try:
+        with open(csv_path, encoding="utf-8") as fh:
+            for row in csv.DictReader(fh):
+                termo = (row.get("termo") or "").strip()
+                nome = (row.get("nome") or "").strip()
+                if termo and nome:
+                    out[termo] = nome
+    except FileNotFoundError:
+        pass
+    return out
+
+
 class FoodDB:
     """Load and lookup foods from TACO CSV by normalized name."""
 
-    def __init__(self, csv_path: str, custom=None):
+    def __init__(self, csv_path: str, custom=None, aliases=None, portions=None):
         self._by_name = {}
         with open(csv_path, encoding="utf-8") as fh:
             for row in csv.DictReader(fh):
@@ -50,6 +65,11 @@ class FoodDB:
         self._custom = {}
         for key, c in (custom or {}).items():
             self._custom[normalize(key)] = c
+        # aliases/portions: por instância, com fallback pros globais (compatível com fixture).
+        src_aliases = ALIASES if aliases is None else aliases
+        self._aliases = {normalize(k): v for k, v in src_aliases.items()}
+        src_portions = PORTIONS if portions is None else portions
+        self._portions = {normalize(k): v for k, v in src_portions.items()}
 
     def lookup(self, name: str):
         """Lookup food by name (normalized); returns dict or None."""
@@ -70,7 +90,7 @@ class FoodDB:
         if key in self._by_name:
             item = self._by_name[key]
             return {**item, "score": 100}
-        alias = ALIASES.get(key)
+        alias = self._aliases.get(key)
         if alias and normalize(alias) in self._by_name:
             item = self._by_name[normalize(alias)]
             return {**item, "score": 100}
@@ -87,4 +107,4 @@ class FoodDB:
         c = self._custom.get(key)
         if c and c.get("porcao_g"):
             return c["porcao_g"]
-        return PORTIONS.get(key)
+        return self._portions.get(key)

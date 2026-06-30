@@ -72,3 +72,27 @@ def test_custom_100g_vira_per100():
     }
     db = FoodDB(FIX, custom=custom)
     assert db.match("tapioca")["per100"]["kcal"] == 240
+
+
+def test_load_aliases_le_csv(tmp_path):
+    from src.nutrition.food_db import load_aliases
+    p = tmp_path / "al.csv"
+    p.write_text("termo,nome\nfrango,Frango grelhado\novo,Ovo cozido\n", encoding="utf-8")
+    al = load_aliases(str(p))
+    assert al == {"frango": "Frango grelhado", "ovo": "Ovo cozido"}
+
+
+def test_load_aliases_arquivo_ausente():
+    from src.nutrition.food_db import load_aliases
+    assert load_aliases("nao/existe.csv") == {}
+
+
+def test_aliases_por_instancia_sobrescreve_global():
+    # aliases passados na instância substituem os globais (não some o fixture lookup)
+    db = FoodDB(FIX, aliases={"xpto": "arroz cozido"})
+    assert db.match("xpto")["name"] == "arroz cozido"
+
+
+def test_portions_por_instancia():
+    db = FoodDB(FIX, portions={"unidade x": 42.0})
+    assert db.portion_grams("unidade x") == 42.0
