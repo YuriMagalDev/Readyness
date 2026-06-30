@@ -4,7 +4,9 @@ from telegram.ext import ContextTypes
 
 from bot import core, messages
 from bot.checkin import CHECKINS, scale_keyboard, parse_callback, prompt_text
-from bot.charts import recovery_chart_png
+from bot.charts import recovery_chart_png, nutrition_chart_png
+from bot.nutrition import load_food_db, today_panel
+from bot.nutrition_format import format_meal_confirm
 from bot.runs import filter_runs
 from src.services_core import save_checkin, build_trends, build_run_detail
 from src.extractors import activity_from_garmin
@@ -12,6 +14,8 @@ from src.plan_parser import parse_plan
 from src.plan_tracker import match_plan, week_start_of
 from src.readiness_score import compute_readiness
 from src.metric_reader import context_from_metrics
+from src.nutrition.meal_parser import parse_meal
+import src.nutrition.store as store
 
 
 def _authorized(update: Update, context) -> bool:
@@ -179,6 +183,64 @@ async def cmd_plano(update: Update, context: ContextTypes.DEFAULT_TYPE):
         score, acwr = None, None
     await update.message.reply_text(
         messages.format_plan(matched, score, acwr), parse_mode=messages.PARSE_MODE)
+
+
+def _profile(context):
+    return context.bot_data.get("profile") or {}
+
+
+async def cmd_comi(update, context):
+    if not _authorized(update, context):
+        return
+    db_path = context.bot_data["db_path"]
+    text = update.message.text.partition(" ")[2].strip()
+    if not text:
+        await update.message.reply_text(
+            "Use: /comi almoço: 100g arroz, 200g frango, 1 ovo")
+        return
+    fdb = load_food_db(db_path)
+    parsed = parse_meal(text, fdb)
+    context.user_data["pending_meal"] = parsed
+    kb = InlineKeyboardMarkup([[
+        InlineKeyboardButton("✅ salvar", callback_data="nut:save"),
+        InlineKeyboardButton("✏️ corrigir", callback_data="nut:edit"),
+    ]])
+    await update.message.reply_text(format_meal_confirm(parsed), reply_markup=kb)
+
+
+async def on_nutrition_button(update, context):
+    if not _authorized(update, context):
+        return
+    q = update.callback_query
+    await q.answer()
+    db_path = context.bot_data["db_path"]
+    day = dt.date.today().isoformat()
+    if q.data == "nut:save":
+        parsed = context.user_data.get("pending_meal")
+        if not parsed:
+            await q.edit_message_text("Nada pra salvar.")
+            return
+        store.save_meal_items(db_path, day, parsed.get("meal"), parsed["items"])
+        context.user_data.pop("pending_meal", None)
+        t = store.day_totals(db_path, day)
+        await q.edit_message_text(f"Salvo. Hoje: {round(t['kcal'])} kcal · P {t['p']:.0f}")
+    elif q.data == "nut:edit":
+        await q.edit_message_text("Reenvie a refeição com /comi corrigindo o item.")
+    elif q.data == "nut:del":
+        ok = store.delete_last_meal_item(db_path, day)
+        await q.edit_message_text("Última refeição apagada." if ok else "Nada pra apagar.")
+
+
+async def cmd_dieta(update, context):
+    if not _authorized(update, context):
+        return
+    db_path = context.bot_data["db_path"]
+    day = dt.date.today().isoformat()
+    panel = today_panel(db_path, _profile(context), day)
+    titulo = "Hoje (dia treino)" if panel["training"] else "Hoje (descanso)"
+    png = nutrition_chart_png(panel["totals"], panel["target"], panel["ea"], titulo=titulo)
+    kb = InlineKeyboardMarkup([[InlineKeyboardButton("🗑 apagar última", callback_data="nut:del")]])
+    await update.message.reply_photo(png, reply_markup=kb)
 
 
 async def on_activity_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
