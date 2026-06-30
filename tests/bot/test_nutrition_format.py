@@ -19,3 +19,16 @@ def test_confirm_marca_nao_reconhecido():
     txt = format_meal_confirm(parsed)
     assert "patinho" in txt
     assert "não" in txt.lower()
+
+
+def test_confirm_mix_e_items_ausente():
+    parsed = {"meal": "jantar", "items": [
+        {"recognized": True, "food": "arroz cozido", "grams": 100,
+         "kcal": 128, "p": 2.5, "c": 28, "g": 0.2},
+        {"recognized": False, "raw": "patinho"},
+    ]}
+    txt = format_meal_confirm(parsed)
+    assert "arroz cozido" in txt and "patinho" in txt
+    assert "128" in txt
+    # missing "items" key must not raise
+    assert "Refeição" in format_meal_confirm({"meal": None})

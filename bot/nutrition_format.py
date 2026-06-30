@@ -3,7 +3,7 @@ def format_meal_confirm(parsed: dict) -> str:
     lines = [f"🍽 {meal}"]
     tot = {"kcal": 0.0, "p": 0.0, "c": 0.0, "g": 0.0}
     desconhecidos = []
-    for it in parsed["items"]:
+    for it in parsed.get("items", []):
         if it.get("recognized"):
             for k in tot:
                 tot[k] += it[k]
@@ -12,7 +12,7 @@ def format_meal_confirm(parsed: dict) -> str:
                 f"P {it['p']:.0f} · C {it['c']:.0f} · G {it['g']:.0f}"
             )
         else:
-            desconhecidos.append(it["raw"])
+            desconhecidos.append(it.get("raw", "?"))
     lines.append(
         f"─ total: {round(tot['kcal'])} kcal · P {tot['p']:.0f} · "
         f"C {tot['c']:.0f} · G {tot['g']:.0f}"
