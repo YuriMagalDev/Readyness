@@ -39,6 +39,13 @@ def close_thread(user_data):
     user_data.pop(_KEY, None)
 
 
+def pop_last(user_data) -> None:
+    """Remove o último item do histórico, se houver thread aberta e não-vazia."""
+    th = user_data.get(_KEY)
+    if th is not None and th["history"]:
+        th["history"].pop()
+
+
 def build_run_context(db, client, activity_id) -> dict:
     """Contexto de uma corrida. Degrada sem splits se Garmin indisponível."""
     try:

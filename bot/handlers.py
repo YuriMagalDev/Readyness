@@ -655,6 +655,32 @@ async def on_ask_button(update, context):
         return
 
 
+def _split_message(text: str, limit: int = 4000) -> list[str]:
+    """Quebra `text` em pedaços de no máximo `limit` chars.
+
+    Tenta cortar na última quebra de linha dentro da janela (preserva
+    parágrafos/linhas); sem quebra disponível, corta duro em `limit`.
+    ``"".join(_split_message(text, limit)) == text`` sempre.
+    """
+    if len(text) <= limit:
+        return [text]
+
+    parts: list[str] = []
+    restante = text
+    while len(restante) > limit:
+        janela = restante[:limit]
+        corte = janela.rfind("\n")
+        if corte <= 0:
+            corte = limit
+        else:
+            corte += 1  # inclui a quebra de linha no pedaço atual
+        parts.append(restante[:corte])
+        restante = restante[corte:]
+    if restante:
+        parts.append(restante)
+    return parts
+
+
 async def _handle_ask_turn(update, context):
     pergunta = update.message.text.strip()
     ask.append_user(context.user_data, pergunta)
@@ -663,11 +689,14 @@ async def _handle_ask_turn(update, context):
                          ask.get_context(context.user_data), depth="deep")
     except Exception:  # noqa: BLE001 — mantém a thread aberta pra nova tentativa
         # remove a pergunta que não foi respondida do histórico
-        context.user_data["ask_thread"]["history"].pop()
+        ask.pop_last(context.user_data)
         await update.message.reply_text("Não consegui responder agora, tenta de novo.")
         return
     ask.append_assistant(context.user_data, resp)
-    await update.message.reply_text(resp, reply_markup=_ASK_FIM_KB)
+    pedacos = _split_message(resp)
+    for pedaco in pedacos[:-1]:
+        await update.message.reply_text(pedaco)
+    await update.message.reply_text(pedacos[-1], reply_markup=_ASK_FIM_KB)
 
 
 async def cmd_peso(update: Update, context: ContextTypes.DEFAULT_TYPE):

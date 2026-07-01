@@ -99,3 +99,44 @@ def test_text_thread_coach_falha_mantem_thread():
     assert ask.is_active(c.user_data) is True   # thread segue aberta
     txt = u.message.reply_text.call_args[0][0]
     assert "tenta de novo" in txt.lower()
+
+
+def test_split_message_texto_curto():
+    texto = "resposta curta"
+    assert handlers._split_message(texto) == [texto]
+
+
+def test_split_message_texto_longo_varios_pedacos():
+    texto = "linha\n" * 2000  # bem maior que o limite
+    pedacos = handlers._split_message(texto, limit=4000)
+    assert len(pedacos) > 1
+    assert all(len(p) <= 4000 for p in pedacos)
+    assert "".join(pedacos) == texto
+
+
+def test_split_message_sem_quebra_de_linha_corta_duro():
+    texto = "x" * 9000
+    pedacos = handlers._split_message(texto, limit=4000)
+    assert all(len(p) <= 4000 for p in pedacos)
+    assert "".join(pedacos) == texto
+
+
+def test_text_thread_resposta_longa_envia_em_pedacos():
+    c = _ctx()
+    ask.open_thread(c.user_data, mode="geral", run_id=None, context={"readiness": {}})
+    u = _update()
+    u.message.text = "me conta tudo"
+    resposta_longa = "abc " * 2300  # ~9200 chars, > 4000
+    with patch("bot.handlers.ask_coach", return_value=resposta_longa):
+        asyncio.run(handlers.on_text_macros(u, c))
+    chamadas = u.message.reply_text.call_args_list
+    assert len(chamadas) > 1
+    # só o último pedaço leva o botão de finalizar
+    for args, kwargs in chamadas[:-1]:
+        assert "reply_markup" not in kwargs
+    assert chamadas[-1][1]["reply_markup"] == handlers._ASK_FIM_KB
+    # conteúdo reconstruído bate com a resposta original
+    texto_reconstruido = "".join(args[0] for args, _ in chamadas)
+    assert texto_reconstruido == resposta_longa
+    # histórico guarda a resposta completa (não fatiada)
+    assert ask.history(c.user_data)[-1] == {"role": "assistant", "content": resposta_longa}

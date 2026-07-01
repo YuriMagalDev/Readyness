@@ -80,3 +80,25 @@ def test_build_general_context_sem_snapshot():
         ctx = ask.build_general_context(db, "h.db", {}, "2026-07-01")
     assert ctx["readiness"] == {}
     assert ctx["nutricao"] == {}
+
+
+def test_pop_last_remove_ultimo():
+    ud = {}
+    ask.open_thread(ud, mode="geral", run_id=None, context={})
+    ask.append_user(ud, "pergunta")
+    ask.append_assistant(ud, "resposta")
+    ask.pop_last(ud)
+    assert ask.history(ud) == [{"role": "user", "content": "pergunta"}]
+
+
+def test_pop_last_sem_thread_noop():
+    ud = {}
+    ask.pop_last(ud)  # sem thread: não quebra
+    assert ask.is_active(ud) is False
+
+
+def test_pop_last_thread_vazia_noop():
+    ud = {}
+    ask.open_thread(ud, mode="geral", run_id=None, context={})
+    ask.pop_last(ud)  # history vazio: não quebra
+    assert ask.history(ud) == []
