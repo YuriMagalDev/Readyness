@@ -238,8 +238,15 @@ async def cmd_comi(update, context):
     db_path = context.bot_data["db_path"]
     text = update.message.text.partition(" ")[2].strip()
     if not text:
-        await update.message.reply_text(
-            "Use: /comi almoço: 100g arroz, 200g frango, 1 ovo")
+        # fluxo guiado: pergunta a refeição; depois o usuário manda os alimentos aos poucos.
+        context.user_data["comi"] = {"meal": None, "items": []}
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌅 café da manhã", callback_data="nut:meal:café da manhã"),
+             InlineKeyboardButton("🍽 almoço", callback_data="nut:meal:almoço")],
+            [InlineKeyboardButton("🥪 lanche", callback_data="nut:meal:lanche"),
+             InlineKeyboardButton("🌙 janta", callback_data="nut:meal:janta")],
+        ])
+        await update.message.reply_text("Qual refeição?", reply_markup=kb)
         return
     fdb = load_food_db(db_path)
     parsed = parse_meal(text, fdb, fuzzy=False)   # exato-only; IA preenche o resto
@@ -276,6 +283,42 @@ async def cmd_comi(update, context):
     await update.message.reply_text(format_meal_confirm(parsed), reply_markup=kb)
 
 
+_COMI_KB = InlineKeyboardMarkup([[
+    InlineKeyboardButton("✅ finalizar", callback_data="nut:comi_fim"),
+    InlineKeyboardButton("📷 foto da tabela", callback_data="nut:comi_foto"),
+]])
+
+
+def _comi_running(comi: dict, extra=None) -> str:
+    """Texto do acumulado da sessão /comi (itens já somados + eventuais não-reconhecidos)."""
+    items = list(comi.get("items", [])) + list(extra or [])
+    return format_meal_confirm({"meal": comi.get("meal"), "items": items})
+
+
+async def _comi_add_foods(update, context, text: str):
+    """Adiciona alimentos à sessão /comi: parse exato -> IA resolve -> acumula."""
+    db_path = context.bot_data["db_path"]
+    comi = context.user_data["comi"]
+    fdb = load_food_db(db_path)
+    parsed = parse_meal(text, fdb, fuzzy=False)
+    desconhecidos = [it.get("name") for it in parsed["items"]
+                     if not it.get("recognized") and it.get("name")]
+    client = context.bot_data.get("anthropic")
+    if desconhecidos and client is not None:
+        try:
+            resolve_unknowns(db_path, desconhecidos, client, context.bot_data["cfg"].vision_model)
+            fdb = load_food_db(db_path)
+            parsed = parse_meal(text, fdb, fuzzy=False)
+        except Exception:  # noqa: BLE001 — IA falhou: segue com o reconhecido + foto
+            pass
+    recon = [it for it in parsed["items"] if it.get("recognized")]
+    unrec = [it for it in parsed["items"] if not it.get("recognized")]
+    comi["items"].extend(recon)
+    msg = _comi_running(comi, extra=unrec)
+    msg += "\n\nManda mais alimentos, ou finaliza."
+    await update.message.reply_text(msg, reply_markup=_COMI_KB)
+
+
 async def on_nutrition_button(update, context):
     if not _authorized(update, context):
         return
@@ -283,6 +326,31 @@ async def on_nutrition_button(update, context):
     await q.answer()
     db_path = context.bot_data["db_path"]
     day = dt.date.today().isoformat()
+    if q.data.startswith("nut:meal:"):
+        meal = q.data.split(":", 2)[2]
+        context.user_data.setdefault("comi", {"meal": None, "items": []})["meal"] = meal
+        await q.edit_message_text(
+            f"🍽 {meal.capitalize()} — manda os alimentos (ex.: 100g arroz, 2 ovos). "
+            "Vou somando.", reply_markup=_COMI_KB)
+        return
+    if q.data == "nut:comi_fim":
+        comi = context.user_data.get("comi")
+        if not comi or not comi.get("items"):
+            context.user_data.pop("comi", None)
+            await q.edit_message_text("Nada pra salvar.")
+            return
+        store.save_meal_items(db_path, day, comi.get("meal"), comi["items"])
+        context.user_data.pop("comi", None)
+        t = store.day_totals(db_path, day)
+        await q.edit_message_text(
+            f"✅ {(comi.get('meal') or 'refeição').capitalize()} salva. "
+            f"Hoje: {round(t['kcal'])} kcal · P {t['p']:.0f}")
+        return
+    if q.data == "nut:comi_foto":
+        context.user_data["comi_foto"] = True
+        await q.edit_message_text(
+            "Manda a foto da tabela nutricional do produto. Depois te peço a quantidade.")
+        return
     if q.data == "nut:save":
         parsed = context.user_data.get("pending_meal")
         if not parsed:
@@ -342,7 +410,8 @@ async def on_photo(update, context):
     if not _authorized(update, context):
         return
     name = context.user_data.get("pending_food")
-    if not name:
+    sessao_foto = context.user_data.get("comi_foto")
+    if not name and not sessao_foto:
         return                                  # foto sem contexto de cadastro: ignora
     client = context.bot_data.get("anthropic")  # populated in Task 14
     model = context.bot_data["cfg"].vision_model
@@ -354,7 +423,17 @@ async def on_photo(update, context):
         await update.message.reply_text(
             "Não consegui ler a tabela. Manda os macros: kcal proteína carbo gordura "
             "(ex.: 120 24 3 1.5)")
-        context.user_data["awaiting_manual"] = name
+        context.user_data["awaiting_manual"] = name or (data or {}).get("name")
+        return
+    # sessão /comi: usa o nome lido do rótulo, cadastra e pede a quantidade.
+    if sessao_foto and not name:
+        context.user_data.pop("comi_foto", None)
+        store.add_custom_food(context.bot_data["db_path"], data["name"], data["base_unit"],
+                              data.get("porcao_g"), data["kcal"], data["p"], data["c"],
+                              data["g"], source="foto")
+        await update.message.reply_text(
+            f"Cadastrei {data['name']} (rótulo). Agora manda a quantidade — ex.: "
+            f"30g {data['name']}.")
         return
     data["name"] = name
     context.user_data["pending_custom"] = data
@@ -369,11 +448,15 @@ async def on_photo(update, context):
 
 
 async def on_text_macros(update, context):
-    """Handle free-text macro entry when awaiting_manual is set."""
+    """Roteia texto solto: macros pendentes > alimentos da sessão /comi."""
     if not _authorized(update, context):
         return
     name = context.user_data.get("awaiting_manual")
     if not name:
+        # sessão /comi ativa com refeição escolhida: texto = alimentos a somar.
+        comi = context.user_data.get("comi")
+        if comi and comi.get("meal"):
+            await _comi_add_foods(update, context, update.message.text.strip())
         return
     macros = parse_manual_macros(update.message.text)
     if not macros:
@@ -403,7 +486,8 @@ async def on_text_macros(update, context):
 async def cmd_cancelar(update, context):
     if not _authorized(update, context):
         return
-    for k in ("pending_meal", "pending_food", "pending_custom", "awaiting_manual"):
+    for k in ("pending_meal", "pending_food", "pending_custom", "awaiting_manual",
+              "comi", "comi_foto"):
         context.user_data.pop(k, None)
     await update.message.reply_text("Ok, cancelei o registro em andamento.")
 
