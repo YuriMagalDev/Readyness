@@ -28,9 +28,17 @@ _AMBIGUITY_MARGIN = 5
 PORTIONS = {
     "ovo": 50.0,
     "ovos": 50.0,
+    "clara": 33.0,
+    "claras": 33.0,
     "banana": 100.0,
+    "bananas": 100.0,
+    "maca": 130.0,
+    "maça": 130.0,
+    "laranja": 180.0,
     "fatia de pao": 25.0,
-    "pao": 25.0,
+    "pao": 50.0,
+    "paes": 50.0,
+    "pães": 50.0,
 }
 
 

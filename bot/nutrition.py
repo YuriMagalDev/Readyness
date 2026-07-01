@@ -2,7 +2,7 @@ import datetime
 
 from src.nutrition.config import nutrition_config
 from src.nutrition.targets import day_target, energy_availability, resolve_exercise_kcal, day_balance
-from src.nutrition.food_db import FoodDB, load_aliases, ALIASES, PORTIONS
+from src.nutrition.food_db import FoodDB, load_aliases, PORTIONS
 import src.nutrition.store as store
 
 _ALIASES_PATH = "src/nutrition/data/aliases.csv"
@@ -10,8 +10,9 @@ _ALIASES_PATH = "src/nutrition/data/aliases.csv"
 
 def load_food_db(db_path, taco_path="src/nutrition/data/taco.csv",
                  aliases_path=_ALIASES_PATH):
-    # aliases curados (termo comum -> nome TACO exato) + os globais como base.
-    aliases = {**ALIASES, **load_aliases(aliases_path)}
+    # SÓ os aliases curados (termo comum -> nome TACO exato). Os ALIASES globais
+    # apontam pros nomes do fixture (não existem na TACO real) — não entram em prod.
+    aliases = load_aliases(aliases_path)
     return FoodDB(taco_path, custom=store.get_custom_foods(db_path),
                   aliases=aliases, portions=PORTIONS)
 
