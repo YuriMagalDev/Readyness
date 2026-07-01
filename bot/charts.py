@@ -39,11 +39,11 @@ def _ring(ax, frac, label, value_txt, color):
            counterclock=False, radius=1.0,
            wedgeprops=dict(width=0.32, edgecolor="none"))
     ax.set_aspect("equal")
-    ax.set_xlim(-1.15, 3.0)
+    ax.set_xlim(-3.2, 3.0)
     ax.set_ylim(-1.2, 1.2)
-    # valor no centro do anel; legenda AO LADO (direita), espaçada e com fonte maior
-    ax.text(0, 0, value_txt, ha="center", va="center", fontsize=13,
-            color="#f0f0f0", fontweight="bold")
+    # número à ESQUERDA do anel; legenda à direita — anel no meio
+    ax.text(-1.45, 0, value_txt, ha="right", va="center", fontsize=14,
+            color="#f0f0f0", fontweight="bold", clip_on=False)
     ax.text(1.45, 0, label, ha="left", va="center", fontsize=14,
             color="#dcdcdc", fontweight="bold", clip_on=False)
 
@@ -79,10 +79,11 @@ def nutrition_panel_png(panel: dict, *, titulo: str = "") -> "io.BytesIO":
         radius=1.0, wedgeprops=dict(width=0.40, edgecolor="none"),
     )
     ax_prot.set_aspect("equal")
-    ax_prot.set_xlim(-1.15, 3.0)
+    ax_prot.set_xlim(-3.2, 3.0)
     ax_prot.set_ylim(-1.2, 1.2)
-    ax_prot.text(0, 0, f"{round(prot_cur)}/{round(prot_tgt)}g",
-                 ha="center", va="center", fontsize=16, color="#f0f0f0", fontweight="bold")
+    ax_prot.text(-1.45, 0, f"{round(prot_cur)}/{round(prot_tgt)}g",
+                 ha="right", va="center", fontsize=16, color="#f0f0f0", fontweight="bold",
+                 clip_on=False)
     prot_leg = "PROTEÍNA" + (f"\nfaltam {round(prot_falta)}g" if prot_falta > 0 else " ✓")
     ax_prot.text(1.45, 0, prot_leg, ha="left", va="center",
                  fontsize=16, color=prot_color, fontweight="bold", clip_on=False)
