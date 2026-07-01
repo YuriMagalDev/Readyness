@@ -21,6 +21,9 @@ from src.metric_reader import context_from_metrics
 from src.nutrition.meal_parser import parse_meal
 from src.nutrition.label_vision import extract_label
 import src.nutrition.store as store
+import bot.ask as ask
+from bot.ask import build_run_context as ask_build_run, build_general_context as ask_build_general
+from src.ai_coach import ask_coach
 
 
 _DP_MAP = {"dp:treino": (1, 0), "dp:corrida": (0, 1),
@@ -585,6 +588,64 @@ async def cmd_macros(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         format_macros_today(panel["today"]), parse_mode="Markdown"
     )
+
+
+# ── /ask: coach conversacional (corrida ou assunto geral) ──────────────────────
+
+_ASK_KB = InlineKeyboardMarkup([[
+    InlineKeyboardButton("🏃 Corrida", callback_data="ask:run"),
+    InlineKeyboardButton("💬 Outro assunto", callback_data="ask:geral"),
+]])
+_ASK_FIM_KB = InlineKeyboardMarkup([[
+    InlineKeyboardButton("✋ finalizar", callback_data="ask:fim")]])
+
+
+async def cmd_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _authorized(update, context):
+        return
+    if context.bot_data.get("anthropic") is None:
+        await update.message.reply_text("🤖 Coach indisponível agora (sem ANTHROPIC_API_KEY).")
+        return
+    await update.message.reply_text("Sobre o quê? 👇", reply_markup=_ASK_KB)
+
+
+async def on_ask_button(update, context):
+    q = update.callback_query
+    await q.answer()
+    data = q.data
+    if data == "ask:fim":
+        ask.close_thread(context.user_data)
+        await q.edit_message_text("Conversa encerrada. ✋ (/ask pra recomeçar)")
+        return
+    if data == "ask:geral":
+        ctx = ask_build_general(context.bot_data["db"], context.bot_data["db_path"],
+                                _profile(context), dt.date.today().isoformat())
+        ask.open_thread(context.user_data, mode="geral", run_id=None, context=ctx)
+        await q.edit_message_text("Manda tua pergunta 👇")
+        return
+    if data == "ask:run":
+        client = context.bot_data["client"]
+        try:
+            runs = filter_runs(client.get_activities(7, fresh=True))[:8]
+        except Exception:  # noqa: BLE001
+            await q.edit_message_text("Não consegui buscar tuas corridas agora.")
+            return
+        if not runs:
+            await q.edit_message_text("Nenhuma corrida recente encontrada.")
+            return
+        db = context.bot_data["db"]
+        for r in runs:
+            db.upsert_activity(activity_from_garmin(r))
+        teclado = [[InlineKeyboardButton(_run_button_label(r),
+                    callback_data=f"ask:pick:{r['activityId']}")] for r in runs]
+        await q.edit_message_text("Qual corrida?", reply_markup=InlineKeyboardMarkup(teclado))
+        return
+    if data.startswith("ask:pick:"):
+        activity_id = int(data.split(":")[-1])
+        ctx = ask_build_run(context.bot_data["db"], context.bot_data["client"], activity_id)
+        ask.open_thread(context.user_data, mode="run", run_id=activity_id, context=ctx)
+        await q.edit_message_text("Manda tua pergunta sobre essa corrida 👇")
+        return
 
 
 async def cmd_peso(update: Update, context: ContextTypes.DEFAULT_TYPE):
