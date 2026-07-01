@@ -412,8 +412,7 @@ async def cmd_dieta(update, context):
     training_today = panel["today"]["training"]
     titulo = "Hoje (dia treino)" if training_today else "Hoje (descanso)"
     png = nutrition_panel_png(panel, titulo=titulo)
-    kb = InlineKeyboardMarkup([[InlineKeyboardButton("🗑 apagar última", callback_data="nut:del")]])
-    await update.message.reply_photo(png, reply_markup=kb)
+    await update.message.reply_photo(png)
 
 
 async def on_photo(update, context):
