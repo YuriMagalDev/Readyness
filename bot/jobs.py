@@ -186,3 +186,12 @@ async def job_alerts(context: ContextTypes.DEFAULT_TYPE):
                 db.set_state(key, "1")
         else:
             db.set_state(key, "0")
+
+
+async def job_weekly_weight(context: ContextTypes.DEFAULT_TYPE):
+    """Pergunta o peso da semana (cadência semanal proposital; pesar todo dia é ruído)."""
+    cfg = context.bot_data["cfg"]
+    await context.bot.send_message(
+        chat_id=cfg.chat_id,
+        text="🗓 Peso da semana? Manda com /peso 107.4 — depois /progresso pra ver a tendência.",
+    )

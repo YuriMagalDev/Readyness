@@ -5,7 +5,11 @@ from telegram.ext import ContextTypes
 from bot import core, messages
 from bot.checkin import CHECKINS, scale_keyboard, parse_callback, prompt_text
 from bot.charts import recovery_chart_png, nutrition_chart_png, nutrition_panel_png
-from bot.nutrition import load_food_db, today_panel, resolve_unknowns
+from bot.nutrition import (
+    load_food_db, today_panel, resolve_unknowns,
+    parse_peso_arg, build_progress_report,
+)
+from src.nutrition.config import nutrition_config
 from bot.nutrition_format import format_meal_confirm, format_nutri_context
 from bot.runs import filter_runs
 from src.services_core import save_checkin, build_trends, build_run_detail
@@ -569,3 +573,61 @@ async def on_activity_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
         messages.format_activity(detail["activity"], detail["insight"]),
         parse_mode=messages.PARSE_MODE,
     )
+
+
+# ── nutrição: peso semanal + progresso ─────────────────────────────────────────
+
+async def cmd_peso(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    arg = " ".join(context.args) if context.args else ""
+    kg = parse_peso_arg(arg)
+    if kg is None:
+        await update.message.reply_text("Uso: /peso 107.4")
+        return
+    today = dt.date.today().isoformat()
+    store.add_weight(context.bot_data["db_path"], today, kg, source="manual")
+    await update.message.reply_text(f"Peso salvo: {kg:.1f} kg ✅")
+
+
+def _week_context(db_path, profile):
+    """Junta pesos, dias da semana (p/kcal/training) e cfg pro relatório de progresso."""
+    cfg = nutrition_config(profile)
+    cfg["kcal_adjust"] = store.get_kcal_adjust(db_path)
+    ws = [w["kg"] for w in store.get_weights(db_path)]
+    today = dt.date.today()
+    dates = [(today - dt.timedelta(days=i)).isoformat() for i in range(1, 8)]
+    tots = store.week_totals(db_path, dates)
+    week_days = []
+    for d, t in zip(dates, tots):
+        plan = store.get_day_plan(db_path, d) or {}
+        training = bool(plan.get("vai_treinar") or plan.get("vai_correr"))
+        week_days.append({"p": t["p"], "kcal": t["kcal"], "training": training})
+    prev_bf = float(profile.get("percentual_gordura") or 30)
+    prev_weight = float(profile.get("peso_kg") or (ws[0] if ws else 108))
+    return ws, week_days, cfg, prev_bf, prev_weight
+
+
+async def cmd_progresso(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    db_path = context.bot_data["db_path"]
+    ws, week_days, cfg, prev_bf, prev_weight = _week_context(db_path, _profile(context))
+    rep = build_progress_report(ws, week_days, cfg, prev_bf, prev_weight)
+    markup = None
+    if rep["proposal"]["action"] in ("cut", "add"):
+        delta = rep["proposal"]["delta_kcal"]
+        markup = InlineKeyboardMarkup([[
+            InlineKeyboardButton("✅ aplicar", callback_data=f"adj:apply:{delta}"),
+            InlineKeyboardButton("✋ manter", callback_data="adj:hold"),
+        ]])
+    await update.message.reply_text(rep["text"], parse_mode="Markdown", reply_markup=markup)
+
+
+async def on_adjust_button(update, context):
+    q = update.callback_query
+    await q.answer()
+    db_path = context.bot_data["db_path"]
+    if q.data.startswith("adj:apply:"):
+        delta = int(q.data.split(":")[-1])
+        novo = store.get_kcal_adjust(db_path) + delta
+        store.set_kcal_adjust(db_path, novo)
+        await q.edit_message_text(f"Alvo ajustado em {delta:+d} kcal. Novo ajuste: {novo:+d}. ✅")
+    else:
+        await q.edit_message_text("Alvo mantido. ✋")

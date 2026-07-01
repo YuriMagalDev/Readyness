@@ -48,6 +48,9 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("dieta", handlers.cmd_dieta))
     app.add_handler(CommandHandler("ref", handlers.cmd_ref))
     app.add_handler(CommandHandler("cancelar", handlers.cmd_cancelar))
+    app.add_handler(CommandHandler("peso", handlers.cmd_peso))
+    app.add_handler(CommandHandler("progresso", handlers.cmd_progresso))
+    app.add_handler(CallbackQueryHandler(handlers.on_adjust_button, pattern=r"^adj:"))
     app.add_handler(CallbackQueryHandler(handlers.on_nutrition_button, pattern=r"^nut:"))
     app.add_handler(CallbackQueryHandler(handlers.on_day_plan_button, pattern=r"^dp:"))
     app.add_handler(MessageHandler(filters.PHOTO, handlers.on_photo))
@@ -61,6 +64,8 @@ def build_app() -> Application:
     jq.run_daily(jobs.job_alerts, time=dt.time(hour=10, minute=0, tzinfo=TZ))
     jq.run_daily(jobs.job_briefing, time=dt.time(hour=19, minute=0, tzinfo=TZ))
     jq.run_daily(jobs.job_day_plan, time=dt.time(hour=7, minute=30, tzinfo=TZ))
+    # peso semanal: domingo 09:00 (day 6 = domingo no python-telegram-bot)
+    jq.run_daily(jobs.job_weekly_weight, time=dt.time(hour=9, minute=0, tzinfo=TZ), days=(6,))
     return app
 
 

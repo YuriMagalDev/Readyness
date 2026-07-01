@@ -35,8 +35,58 @@ def resolve_unknowns(db_path, names, client, model):
     return resolvidos
 
 
+def parse_peso_arg(text):
+    """'107,4' | '107.4' -> 107.4 ; inválido/fora de faixa humana -> None."""
+    if not text:
+        return None
+    try:
+        v = float(text.strip().replace(",", "."))
+    except ValueError:
+        return None
+    if not (30.0 <= v <= 300.0):
+        return None
+    return v
+
+
+def build_progress_report(weights, week_days, cfg, prev_bf, prev_weight):
+    """Monta o texto do /progresso + a proposta de ajuste (pura, testável).
+
+    weights: lista de kg (cronológica). week_days: list de dicts com p, kcal, training.
+    """
+    from src.nutrition.adaptive import (
+        trend_kg, weekly_rate_pct, derive_bf,
+        is_adherent_day, week_adherence_ok, propose_adjustment,
+    )
+
+    trend = trend_kg(weights)
+    rate = weekly_rate_pct(weights)
+
+    flags = []
+    for d in week_days:
+        target = day_target(cfg, training=d.get("training", False))
+        flags.append(is_adherent_day({"p": d["p"], "kcal": d["kcal"]}, target))
+    adher_ok = week_adherence_ok(flags)
+
+    proposal = propose_adjustment(rate, adher_ok, cfg)
+
+    latest = weights[-1] if weights else prev_weight
+    bf = derive_bf(prev_weight, prev_bf, weights[-1]) if weights else prev_bf
+    lbm = latest * (1 - bf / 100.0)
+
+    lines = ["📊 *Progresso*"]
+    if trend is not None:
+        lines.append(f"Peso (tendência): {trend:.1f} kg")
+    if rate is not None:
+        lines.append(f"Ritmo: {rate:+.2f}%/sem")
+    lines.append(f"BF estimado: {bf:.1f}% · LBM {lbm:.1f} kg")
+    lines.append(f"Aderência: {sum(flags)}/{len(flags)} dias" if flags else "Aderência: sem registro")
+    lines.append(f"→ {proposal['reason']}")
+    return {"text": "\n".join(lines), "proposal": proposal}
+
+
 def today_panel(db_path, profile, date):
     cfg = nutrition_config(profile)
+    cfg["kcal_adjust"] = store.get_kcal_adjust(db_path)
 
     # ── TODAY ──────────────────────────────────────────────────────────────────
     plan = store.get_day_plan(db_path, date) or {}

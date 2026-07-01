@@ -41,7 +41,7 @@ def test_today_panel_descanso(tmp_path):
     panel = today_panel(p, PROFILE, "2026-06-30")
     t = panel["today"]
     assert t["training"] is False
-    assert round(t["target"]["kcal"]) == 2104
+    assert round(t["target"]["kcal"]) == 1780   # modelo novo: carbo 130 descanso
     assert t["totals"]["kcal"] == 500
     assert t["ea"]["faixa"] in ("verde", "amarelo", "vermelho")
 
@@ -72,7 +72,7 @@ def test_today_panel_yesterday_balance(tmp_path):
     assert yd["burn"] == 2900.0
     assert yd["eaten"]["kcal"] == 2200
     assert yd["balance"]["saldo"] == 2200 - 2900.0
-    assert yd["protein_target"] == 165
+    assert yd["protein_target"] == 180
 
 
 def test_today_panel_yesterday_no_snapshot(tmp_path):
@@ -94,3 +94,38 @@ def test_load_food_db_prod_resolve_comuns(tmp_path):
         assert m["per100"]["kcal"] > 0
     # alias aponta pro peito grelhado, não pra coxinha frita
     assert "peito" in db.match("frango")["name"].lower()
+
+
+# ── peso semanal + progresso ────────────────────────────────────────────────────
+
+from bot.nutrition import parse_peso_arg, build_progress_report
+from src.nutrition.config import nutrition_config
+
+_CFG = nutrition_config(PROFILE)
+
+
+def test_parse_peso_ok():
+    assert parse_peso_arg("107.4") == 107.4
+    assert parse_peso_arg("107,4") == 107.4
+    assert parse_peso_arg("  108 ") == 108.0
+
+
+def test_parse_peso_invalido():
+    assert parse_peso_arg("") is None
+    assert parse_peso_arg("abc") is None
+    assert parse_peso_arg("0") is None
+    assert parse_peso_arg("500") is None
+
+
+def test_report_travado_com_aderencia_propoe_corte():
+    weights = [108.0, 107.9, 107.9]
+    week_days = [{"p": 185, "kcal": 1800, "training": False}] * 5 + \
+                [{"p": 100, "kcal": 2500, "training": False}] * 2
+    rep = build_progress_report(weights, week_days, _CFG, prev_bf=30.0, prev_weight=108.0)
+    assert rep["proposal"]["action"] == "cut"
+    assert "estimado" in rep["text"].lower()
+
+
+def test_report_sem_peso_nao_propoe():
+    rep = build_progress_report([107.4], [], _CFG, prev_bf=30.0, prev_weight=108.0)
+    assert rep["proposal"]["action"] == "hold"
