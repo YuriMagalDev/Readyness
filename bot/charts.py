@@ -37,11 +37,15 @@ def _ring(ax, frac, label, value_txt, color):
     frac = max(0.0, min(1.0, frac))
     ax.pie([frac, 1 - frac], colors=[color, "#2b2b2b"], startangle=90,
            counterclock=False, radius=1.0,
-           wedgeprops=dict(width=0.30, edgecolor="none"))
+           wedgeprops=dict(width=0.32, edgecolor="none"))
     ax.set_aspect("equal")
-    ax.text(0, 0.15, value_txt, ha="center", va="center", fontsize=11,
+    ax.set_xlim(-1.15, 3.0)
+    ax.set_ylim(-1.2, 1.2)
+    # valor no centro do anel; legenda AO LADO (direita), espaçada e com fonte maior
+    ax.text(0, 0, value_txt, ha="center", va="center", fontsize=13,
             color="#f0f0f0", fontweight="bold")
-    ax.text(0, -0.35, label, ha="center", va="center", fontsize=9, color="#bdbdbd")
+    ax.text(1.45, 0, label, ha="left", va="center", fontsize=14,
+            color="#dcdcdc", fontweight="bold", clip_on=False)
 
 
 def nutrition_panel_png(panel: dict, *, titulo: str = "") -> "io.BytesIO":
@@ -56,50 +60,48 @@ def nutrition_panel_png(panel: dict, *, titulo: str = "") -> "io.BytesIO":
     def frac(cur, tot):
         return (cur / tot) if tot else 0.0
 
-    # ── layout: 3 rows, 3 cols ─────────────────────────────────────────────────
-    fig = plt.figure(figsize=(7, 7.5))
+    # ── layout: anéis empilhados (legenda ao lado de cada) + resumo de ontem ────
+    fig = plt.figure(figsize=(7.5, 9.5))
     fig.patch.set_facecolor("#1e1e1e")
 
-    # row 0: protein ring (full width, dominant)
-    # row 1: kcal + carb + fat rings
-    # row 2: yesterday text summary
-    gs = fig.add_gridspec(3, 3, height_ratios=[1.4, 1.0, 0.9], hspace=0.45)
+    # linhas: proteína (dominante) · kcal · carbo · gordura · ontem
+    gs = fig.add_gridspec(5, 1, height_ratios=[1.25, 1.0, 1.0, 1.0, 1.15], hspace=0.35)
 
-    # Protein ring — visually dominant (row 0, full width)
-    ax_prot = fig.add_subplot(gs[0, :])
+    # Proteína — anel dominante (fonte maior), legenda ao lado
+    ax_prot = fig.add_subplot(gs[0, 0])
     prot_cur = totals.get("p", 0)
     prot_tgt = target.get("protein_g", 1)
     prot_falta = max(0.0, prot_tgt - prot_cur)
     prot_color = "#3b7dd8"
-    # larger radius by using bigger wedge
     ax_prot.pie(
         [frac(prot_cur, prot_tgt), max(0.0, 1 - frac(prot_cur, prot_tgt))],
         colors=[prot_color, "#2b2b2b"], startangle=90, counterclock=False,
-        radius=1.0, wedgeprops=dict(width=0.38, edgecolor="none"),
+        radius=1.0, wedgeprops=dict(width=0.40, edgecolor="none"),
     )
     ax_prot.set_aspect("equal")
-    ax_prot.text(0, 0.18, f"{round(prot_cur)}/{round(prot_tgt)}g",
-                 ha="center", va="center", fontsize=13, color="#f0f0f0", fontweight="bold")
-    ax_prot.text(0, -0.28, "PROTEÍNA", ha="center", va="center",
-                 fontsize=10, color=prot_color, fontweight="bold")
-    if prot_falta > 0:
-        ax_prot.text(0, -0.52, f"faltam {round(prot_falta)}g",
-                     ha="center", va="center", fontsize=9, color="#e07b3b")
+    ax_prot.set_xlim(-1.15, 3.0)
+    ax_prot.set_ylim(-1.2, 1.2)
+    ax_prot.text(0, 0, f"{round(prot_cur)}/{round(prot_tgt)}g",
+                 ha="center", va="center", fontsize=16, color="#f0f0f0", fontweight="bold")
+    prot_leg = "PROTEÍNA" + (f"\nfaltam {round(prot_falta)}g" if prot_falta > 0 else " ✓")
+    ax_prot.text(1.45, 0, prot_leg, ha="left", va="center",
+                 fontsize=16, color=prot_color, fontweight="bold", clip_on=False)
 
-    # kcal + carb + fat rings (row 1)
+    # kcal · carbo · gordura — um anel por linha, legenda ao lado
     specs = [
         ("kcal", totals.get("kcal", 0), target.get("kcal", 0),
          _FAIXA_COR.get(ea.get("faixa"), "#3b7dd8"),
-         f"kcal\nEA {ea.get('faixa','?')}"),
-        ("carb", totals.get("c", 0), target.get("carb_g", 0), "#d99a14", "carb"),
-        ("gord", totals.get("g", 0), target.get("fat_g", 0), "#9b59b6", "gord"),
+         f"KCAL · EA {ea.get('faixa','?')}"),
+        ("carb", totals.get("c", 0), target.get("carb_g", 0), "#d99a14", "CARBO"),
+        ("gord", totals.get("g", 0), target.get("fat_g", 0), "#9b59b6", "GORDURA"),
     ]
-    for col, (lbl, cur, tot, color, display_lbl) in enumerate(specs):
-        ax = fig.add_subplot(gs[1, col])
-        _ring(ax, frac(cur, tot), display_lbl, f"{round(cur)}/{round(tot)}{'g' if lbl!='kcal' else ''}", color)
+    for row, (lbl, cur, tot, color, display_lbl) in enumerate(specs, start=1):
+        ax = fig.add_subplot(gs[row, 0])
+        _ring(ax, frac(cur, tot), display_lbl,
+              f"{round(cur)}/{round(tot)}{'g' if lbl != 'kcal' else ''}", color)
 
-    # ── YESTERDAY summary (row 2, full width) ─────────────────────────────────
-    ax_yd = fig.add_subplot(gs[2, :])
+    # ── ONTEM (fonte maior) ────────────────────────────────────────────────────
+    ax_yd = fig.add_subplot(gs[4, 0])
     ax_yd.set_facecolor("#141414")
     ax_yd.axis("off")
 
@@ -131,16 +133,18 @@ def nutrition_panel_png(panel: dict, *, titulo: str = "") -> "io.BytesIO":
     prot_y_color = "#2e9e5b" if prot_y >= prot_tgt_y * 0.9 else "#e07b3b"
 
     lines = [
-        (f"ONTEM — comido: {round(eaten_y)} kcal · gasto: {burn_str}", "#bdbdbd"),
+        (f"comido: {round(eaten_y)} kcal  ·  gasto: {burn_str}", "#bdbdbd"),
         (f"Saldo: {saldo_str}", saldo_color),
         (f"EA: {ea_faixa_y}  ·  Proteína: {round(prot_y)}/{round(prot_tgt_y)}g", ea_color_y),
     ]
+    ax_yd.text(0.02, 0.98, "ONTEM", transform=ax_yd.transAxes,
+               fontsize=13, color="#8a8a8a", va="top", fontweight="bold")
     for i, (line, color) in enumerate(lines):
-        ax_yd.text(0.02, 0.78 - i * 0.32, line, transform=ax_yd.transAxes,
-                   fontsize=9, color=color, va="top")
+        ax_yd.text(0.02, 0.72 - i * 0.30, line, transform=ax_yd.transAxes,
+                   fontsize=14, color=color, va="top")
 
     if titulo:
-        fig.suptitle(titulo, color="#f0f0f0", fontsize=12)
+        fig.suptitle(titulo, color="#f0f0f0", fontsize=17, fontweight="bold")
 
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=120, facecolor=fig.get_facecolor())
