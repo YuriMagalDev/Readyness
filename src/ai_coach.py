@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 HAIKU = "claude-haiku-4-5-20251001"
-SONNET = "claude-sonnet-4-6"
+SONNET = "claude-sonnet-5"
 
 def _load_athlete_profile() -> dict:
     path = Path("athlete_profile.json")
@@ -15,10 +15,10 @@ def _load_athlete_profile() -> dict:
         raise FileNotFoundError("athlete_profile.json not found. Create it from the spec.")
     return json.loads(path.read_text(encoding="utf-8"))
 
-def ask_coach(prompt: str, context: dict, depth: str = "quick") -> str:
+def ask_coach(messages, context: dict, depth: str = "quick") -> str:
     """
-    depth='quick' → Haiku  (análises rápidas, < 300 tokens)
-    depth='deep'  → Sonnet (planos, análises multi-etapa)
+    messages: str (uma pergunta) OU list[{"role","content"}] (thread com histórico).
+    depth='quick' → Haiku ; depth='deep' → Sonnet.
     """
     model = HAIKU if depth == "quick" else SONNET
     profile = _load_athlete_profile()
@@ -34,11 +34,14 @@ def ask_coach(prompt: str, context: dict, depth: str = "quick") -> str:
         {"type": "text", "text": context_block},
     ]
 
+    if isinstance(messages, str):
+        messages = [{"role": "user", "content": messages}]
+
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     message = client.messages.create(
         model=model,
         max_tokens=1024 if depth == "quick" else 2048,
         system=system,
-        messages=[{"role": "user", "content": prompt}],
+        messages=messages,
     )
     return message.content[0].text
