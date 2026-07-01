@@ -21,14 +21,14 @@ def _session(db_path):
         conn.close()
 
 
-def add_custom_food(db_path, name, base_unit, porcao_g, kcal, p, c, g):
+def add_custom_food(db_path, name, base_unit, porcao_g, kcal, p, c, g, source="manual"):
     with _session(db_path) as conn:
         conn.execute(
             "INSERT OR REPLACE INTO custom_foods "
-            "(name, base_unit, porcao_g, kcal, p, c, g, created_at) "
-            "VALUES (?,?,?,?,?,?,?,?)",
+            "(name, base_unit, porcao_g, kcal, p, c, g, created_at, source) "
+            "VALUES (?,?,?,?,?,?,?,?,?)",
             (normalize(name), base_unit, porcao_g, kcal, p, c, g,
-             dt.datetime.now().isoformat()),
+             dt.datetime.now().isoformat(), source),
         )
 
 
@@ -42,6 +42,7 @@ def get_custom_foods(db_path) -> dict:
             "base_unit": r["base_unit"],
             "porcao_g": r["porcao_g"],
             "macros": {"kcal": r["kcal"], "p": r["p"], "c": r["c"], "g": r["g"]},
+            "source": (r["source"] if "source" in r.keys() else None) or "manual",
         }
     return out
 

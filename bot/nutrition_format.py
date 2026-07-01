@@ -25,6 +25,9 @@ def format_nutri_context(yesterday: dict) -> str | None:
     return "📊 Ontem (contexto, não muda o veredito): " + " · ".join(partes)
 
 
+_SOURCE_TAG = {"ia": " ~IA", "foto": " (rótulo)", "manual": " (cadastro)"}
+
+
 def format_meal_confirm(parsed: dict) -> str:
     meal = (parsed.get("meal") or "Refeição").capitalize()
     lines = [f"🍽 {meal}"]
@@ -34,9 +37,10 @@ def format_meal_confirm(parsed: dict) -> str:
         if it.get("recognized"):
             for k in tot:
                 tot[k] += it[k]
+            tag = _SOURCE_TAG.get(it.get("source"), "")
             lines.append(
                 f"• {it['food']} {round(it['grams'])}g → {round(it['kcal'])} kcal · "
-                f"P {it['p']:.0f} · C {it['c']:.0f} · G {it['g']:.0f}"
+                f"P {it['p']:.0f} · C {it['c']:.0f} · G {it['g']:.0f}{tag}"
             )
         else:
             desconhecidos.append(it.get("raw", "?"))

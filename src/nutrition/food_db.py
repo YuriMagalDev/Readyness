@@ -87,12 +87,15 @@ class FoodDB:
         """Lookup food by name (normalized); returns dict or None."""
         return self._by_name.get(normalize(name))
 
-    def match(self, name: str, threshold: int = 85):
-        """Match food by exact, alias, or fuzzy; returns dict with score or None."""
+    def match(self, name: str, threshold: int = 85, fuzzy: bool = True):
+        """Match por custom, exato, (alias/fuzzy se fuzzy=True). Dict com score/source ou None.
+
+        fuzzy=False → só custom + TACO exato (usado em prod; a IA preenche o resto).
+        """
         key = normalize(name)
         if key in self._custom:
             c = self._custom[key]
-            base = {"name": c["name"], "score": 100}
+            base = {"name": c["name"], "score": 100, "source": c.get("source") or "manual"}
             if c["base_unit"] == "porcao":
                 base["per_portion"] = c["macros"]
                 base["portion_g"] = c["porcao_g"]
@@ -101,11 +104,15 @@ class FoodDB:
             return base
         if key in self._by_name:
             item = self._by_name[key]
-            return {**item, "score": 100}
+            return {**item, "score": 100, "source": "taco"}
+        # aliases curados (alvo real na TACO) são determinísticos e confiáveis: valem mesmo
+        # sem fuzzy. Só o fuzzy (match aproximado, fonte de erro) é gateado por fuzzy=True.
         alias = self._aliases.get(key)
         if alias and normalize(alias) in self._by_name:
             item = self._by_name[normalize(alias)]
-            return {**item, "score": 100}
+            return {**item, "score": 100, "source": "taco"}
+        if not fuzzy:
+            return None
         choices = list(self._by_name.keys())
         results = process.extract(key, choices, scorer=fuzz.WRatio, limit=2)
         if results and results[0][1] >= threshold:
@@ -114,7 +121,7 @@ class FoodDB:
             if len(results) > 1 and (best[1] - results[1][1]) < _AMBIGUITY_MARGIN:
                 return None
             item = self._by_name[best[0]]
-            return {**item, "score": int(best[1])}
+            return {**item, "score": int(best[1]), "source": "taco"}
         return None
 
     def portion_grams(self, name: str):

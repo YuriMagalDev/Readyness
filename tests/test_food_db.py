@@ -109,3 +109,10 @@ def test_match_confiante_com_gap_resolve():
     db = FoodDB(FIX)
     m = db.match("arrloz cozido")
     assert m is not None and m["name"] == "arroz cozido"
+
+
+def test_match_fuzzy_false_exato_e_alias():
+    db = FoodDB(FIX)
+    assert db.match("arroz cozido", fuzzy=False)["source"] == "taco"      # exato
+    assert db.match("frango", fuzzy=False)["name"] == "peito de frango grelhado"  # alias curado vale
+    assert db.match("arrloz cozido", fuzzy=False) is None                 # fuzzy/typo NAO resolve

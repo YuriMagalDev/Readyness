@@ -5,7 +5,7 @@ from telegram.ext import ContextTypes
 from bot import core, messages
 from bot.checkin import CHECKINS, scale_keyboard, parse_callback, prompt_text
 from bot.charts import recovery_chart_png, nutrition_chart_png, nutrition_panel_png
-from bot.nutrition import load_food_db, today_panel
+from bot.nutrition import load_food_db, today_panel, resolve_unknowns
 from bot.nutrition_format import format_meal_confirm, format_nutri_context
 from bot.runs import filter_runs
 from src.services_core import save_checkin, build_trends, build_run_detail
@@ -242,7 +242,21 @@ async def cmd_comi(update, context):
             "Use: /comi almoço: 100g arroz, 200g frango, 1 ovo")
         return
     fdb = load_food_db(db_path)
-    parsed = parse_meal(text, fdb)
+    parsed = parse_meal(text, fdb, fuzzy=False)   # exato-only; IA preenche o resto
+
+    # Desconhecidos → IA resolve e cacheia (source=ia); depois re-parseia com a base atualizada.
+    desconhecidos = [it.get("name") for it in parsed.get("items", [])
+                     if not it.get("recognized") and it.get("name")]
+    client = context.bot_data.get("anthropic")
+    if desconhecidos and client is not None:
+        cfg = context.bot_data["cfg"]
+        try:
+            resolve_unknowns(db_path, desconhecidos, client, cfg.vision_model)
+            fdb = load_food_db(db_path)
+            parsed = parse_meal(text, fdb, fuzzy=False)
+        except Exception:  # noqa: BLE001 — IA falhou: segue com o que reconheceu + botões
+            pass
+
     context.user_data["pending_meal"] = parsed
 
     # Check for unrecognized items — offer cadastro buttons for the first one

@@ -17,6 +17,24 @@ def load_food_db(db_path, taco_path="src/nutrition/data/taco.csv",
                   aliases=aliases, portions=PORTIONS)
 
 
+def resolve_unknowns(db_path, names, client, model):
+    """Resolve nomes de alimentos via IA e cacheia em custom_foods (source='ia').
+
+    Retorna a lista de termos resolvidos. Termo é gravado como o usuário digitou,
+    pra bater exato no próximo /comi. Sem cliente/API: retorna [] (degrada).
+    """
+    from src.nutrition.food_resolver import resolve_food
+    resolvidos = []
+    for termo in dict.fromkeys(n for n in names if n):   # distintos, preserva ordem
+        data = resolve_food(termo, client=client, model=model)
+        if not data:
+            continue
+        store.add_custom_food(db_path, termo, data["base_unit"], data.get("porcao_g"),
+                              data["kcal"], data["p"], data["c"], data["g"], source="ia")
+        resolvidos.append(termo)
+    return resolvidos
+
+
 def today_panel(db_path, profile, date):
     cfg = nutrition_config(profile)
 

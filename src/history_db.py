@@ -89,8 +89,13 @@ class HistoryDB:
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS custom_foods ("
                 "name TEXT PRIMARY KEY, base_unit TEXT NOT NULL, porcao_g REAL, "
-                "kcal REAL, p REAL, c REAL, g REAL, created_at TEXT NOT NULL)"
+                "kcal REAL, p REAL, c REAL, g REAL, created_at TEXT NOT NULL, "
+                "source TEXT)"
             )
+            # migração: custom_foods antiga pode não ter a coluna source.
+            cols = {r[1] for r in conn.execute("PRAGMA table_info(custom_foods)")}
+            if "source" not in cols:
+                conn.execute("ALTER TABLE custom_foods ADD COLUMN source TEXT")
 
     @staticmethod
     def _add_missing_columns(conn, table: str, columns: list, type_for):
