@@ -436,15 +436,14 @@ async def on_photo(update, context):
             "(ex.: 120 24 3 1.5)")
         context.user_data["awaiting_manual"] = name or (data or {}).get("name")
         return
-    # sessão /comi: usa o nome lido do rótulo, cadastra e pede a quantidade.
+    # sessão /comi: leu os macros do rótulo; agora pede o NOME pro usuário.
     if sessao_foto and not name:
         context.user_data.pop("comi_foto", None)
-        store.add_custom_food(context.bot_data["db_path"], data["name"], data["base_unit"],
-                              data.get("porcao_g"), data["kcal"], data["p"], data["c"],
-                              data["g"], source="foto")
+        context.user_data["awaiting_food_name"] = data      # macros pendentes
         await update.message.reply_text(
-            f"Cadastrei {data['name']} (rótulo). Agora manda a quantidade — ex.: "
-            f"30g {data['name']}.")
+            f"Li do rótulo: {round(data['kcal'])} kcal · P {data['p']:.0f} · "
+            f"C {data['c']:.0f} · G {data['g']:.0f} (por {'porção' if data['base_unit']=='porcao' else '100g'}).\n"
+            "Qual o nome desse alimento?")
         return
     data["name"] = name
     context.user_data["pending_custom"] = data
@@ -461,6 +460,17 @@ async def on_photo(update, context):
 async def on_text_macros(update, context):
     """Roteia texto solto: macros pendentes > alimentos da sessão /comi."""
     if not _authorized(update, context):
+        return
+    # nome pendente após foto do rótulo: texto = nome do alimento -> cadastra com os macros lidos.
+    pend = context.user_data.get("awaiting_food_name")
+    if pend:
+        nome = update.message.text.strip()
+        context.user_data.pop("awaiting_food_name", None)
+        store.add_custom_food(context.bot_data["db_path"], nome, pend["base_unit"],
+                              pend.get("porcao_g"), pend["kcal"], pend["p"], pend["c"],
+                              pend["g"], source="foto")
+        await update.message.reply_text(
+            f"Cadastrei {nome} (rótulo). Agora manda a quantidade — ex.: 30g {nome}.")
         return
     name = context.user_data.get("awaiting_manual")
     if not name:
@@ -498,7 +508,7 @@ async def cmd_cancelar(update, context):
     if not _authorized(update, context):
         return
     for k in ("pending_meal", "pending_food", "pending_custom", "awaiting_manual",
-              "comi", "comi_foto"):
+              "comi", "comi_foto", "awaiting_food_name"):
         context.user_data.pop(k, None)
     await update.message.reply_text("Ok, cancelei o registro em andamento.")
 
