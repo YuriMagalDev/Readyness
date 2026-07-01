@@ -133,3 +133,47 @@ def get_day_plan(db_path, date):
     with _session(db_path) as conn:
         row = conn.execute("SELECT * FROM day_plan WHERE date=?", (date,)).fetchone()
     return dict(row) if row else None
+
+
+def add_weight(db_path, date, kg, source="manual"):
+    with _session(db_path) as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO weights (date, kg, source, set_at) VALUES (?,?,?,?)",
+            (date, float(kg), source, dt.datetime.now().isoformat()),
+        )
+
+
+def get_weights(db_path) -> list:
+    with _session(db_path) as conn:
+        rows = conn.execute(
+            "SELECT date, kg, source FROM weights ORDER BY date ASC"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def latest_weight(db_path):
+    with _session(db_path) as conn:
+        row = conn.execute(
+            "SELECT kg FROM weights ORDER BY date DESC LIMIT 1"
+        ).fetchone()
+    return row["kg"] if row else None
+
+
+def get_kcal_adjust(db_path) -> int:
+    with _session(db_path) as conn:
+        row = conn.execute(
+            "SELECT value FROM bot_state WHERE key='nutri_kcal_adjust'"
+        ).fetchone()
+    return int(row["value"]) if row and row["value"] is not None else 0
+
+
+def set_kcal_adjust(db_path, value):
+    with _session(db_path) as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO bot_state (key, value) VALUES ('nutri_kcal_adjust', ?)",
+            (str(int(value)),),
+        )
+
+
+def week_totals(db_path, dates) -> list:
+    return [day_totals(db_path, d) for d in dates]

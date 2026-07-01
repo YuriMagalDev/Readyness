@@ -87,6 +87,10 @@ class HistoryDB:
                 "date TEXT PRIMARY KEY, vai_treinar INTEGER, vai_correr INTEGER, set_at TEXT)"
             )
             conn.execute(
+                "CREATE TABLE IF NOT EXISTS weights ("
+                "date TEXT PRIMARY KEY, kg REAL NOT NULL, source TEXT, set_at TEXT)"
+            )
+            conn.execute(
                 "CREATE TABLE IF NOT EXISTS custom_foods ("
                 "name TEXT PRIMARY KEY, base_unit TEXT NOT NULL, porcao_g REAL, "
                 "kcal REAL, p REAL, c REAL, g REAL, created_at TEXT NOT NULL, "

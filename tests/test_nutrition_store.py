@@ -50,6 +50,43 @@ def test_save_recognized_sem_macros_nao_quebra(tmp_path):
     assert t["kcal"] == 0 and t["n_meals"] == 1
 
 
+def test_weights_roundtrip(tmp_path):
+    p = _db(tmp_path)
+    store.add_weight(p, "2026-06-22", 108.0)
+    store.add_weight(p, "2026-06-29", 107.4)
+    ws = store.get_weights(p)
+    assert [w["kg"] for w in ws] == [108.0, 107.4]
+    assert store.latest_weight(p) == 107.4
+
+
+def test_weight_upsert_mesma_data(tmp_path):
+    p = _db(tmp_path)
+    store.add_weight(p, "2026-06-29", 107.4)
+    store.add_weight(p, "2026-06-29", 107.1)   # corrige o mesmo dia
+    assert store.latest_weight(p) == 107.1
+    assert len(store.get_weights(p)) == 1
+
+
+def test_kcal_adjust_default_zero(tmp_path):
+    p = _db(tmp_path)
+    assert store.get_kcal_adjust(p) == 0
+
+
+def test_kcal_adjust_roundtrip(tmp_path):
+    p = _db(tmp_path)
+    store.set_kcal_adjust(p, -100)
+    assert store.get_kcal_adjust(p) == -100
+
+
+def test_week_totals(tmp_path):
+    p = _db(tmp_path)
+    store.save_meal_items(p, "2026-06-29", "almoço",
+                          [{"recognized": True, "food": "x", "grams": 10,
+                            "kcal": 500, "p": 40, "c": 10, "g": 5}])
+    tots = store.week_totals(p, ["2026-06-29", "2026-06-30"])
+    assert round(tots[0]["kcal"]) == 500 and tots[1]["kcal"] == 0
+
+
 def _insert_snapshot(db_path, date, calories_total=None, calories_active=None):
     import sqlite3
     conn = sqlite3.connect(db_path)
