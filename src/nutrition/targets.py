@@ -24,13 +24,25 @@ def tdee_base(cfg: dict) -> float:
 
 
 def day_target(cfg: dict, *, training: bool, exercise_kcal: float = 0.0) -> dict:
-    kcal = tdee_base(cfg) - cfg["deficit_kcal"]
-    if training:
-        kcal += exercise_kcal
     protein_g = cfg["protein_g"]
     fat_g = cfg["fat_g"]
-    carb_g = max(0.0, (kcal - protein_g * 4 - fat_g * 9) / 4)
-    return {"kcal": kcal, "protein_g": protein_g, "fat_g": fat_g, "carb_g": carb_g}
+    carb_g = cfg["carb_train_g"] if training else cfg["carb_rest_g"]
+    fixed_kcal = protein_g * 4 + fat_g * 9
+    intake = fixed_kcal + carb_g * 4
+
+    # piso de comida: não deixar o deficit passar de deficit_floor
+    expenditure = tdee_base(cfg) + (exercise_kcal if training else 0.0)
+    if expenditure - intake > cfg["deficit_floor"]:
+        intake = expenditure - cfg["deficit_floor"]
+        carb_g = max(0.0, (intake - fixed_kcal) / 4)
+
+    # ajuste aplicado (proposto+confirmado): desloca o carbo
+    adjust = cfg.get("kcal_adjust", 0)
+    if adjust:
+        carb_g = max(0.0, carb_g + adjust / 4)
+        intake = fixed_kcal + carb_g * 4
+
+    return {"kcal": intake, "protein_g": protein_g, "fat_g": fat_g, "carb_g": carb_g}
 
 
 def energy_availability(cfg: dict, intake_kcal: float, exercise_kcal: float) -> dict:

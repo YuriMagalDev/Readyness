@@ -12,19 +12,37 @@ def test_tdee_base():
     assert round(tdee_base(CFG)) == 2604
 
 
-def test_dia_descanso():
+def test_descanso_carbo_baixo():
     t = day_target(CFG, training=False)
-    assert round(t["kcal"]) == 2104          # 2603.8 - 500
-    assert t["protein_g"] == 165
+    assert t["protein_g"] == 180
     assert t["fat_g"] == 60
-    # carb = (2104 - 165*4 - 60*9)/4 = (2104 - 660 - 540)/4 = 226
-    assert round(t["carb_g"]) == 226
+    assert round(t["carb_g"]) == 130
+    # intake = 180*4 + 60*9 + 130*4 = 720 + 540 + 520 = 1780
+    assert round(t["kcal"]) == 1780
 
 
-def test_dia_treino_soma_exercicio():
-    t = day_target(CFG, training=True, exercise_kcal=400)
-    assert round(t["kcal"]) == 2504          # descanso + 400
-    assert round(t["carb_g"]) == 326         # +100g carbo
+def test_treino_carbo_200_sem_piso():
+    # só treino: gasto 2604+300=2904 ; intake carbo200 = 2060 ; deficit 844 < 900 -> fica 200
+    t = day_target(CFG, training=True, exercise_kcal=300)
+    assert round(t["carb_g"]) == 200
+    assert round(t["kcal"]) == 2060
+
+
+def test_piso_libera_carbo_dia_pesado():
+    # treino+corrida: gasto 2604+700=3304 ; carbo200 daria deficit 1244 > 900
+    # piso: intake alvo = 3304-900 = 2404 ; carbo = (2404-1260)/4 = 286
+    t = day_target(CFG, training=True, exercise_kcal=700)
+    assert round(t["carb_g"]) == 286
+    assert round(t["kcal"]) == 2404
+
+
+def test_kcal_adjust_desloca_carbo():
+    cfg = nutrition_config({"peso_kg": 108, "percentual_gordura": 30})
+    cfg["kcal_adjust"] = -100
+    t = day_target(cfg, training=False)
+    # 1780 - 100 = 1680 ; carbo 130 - 25 = 105
+    assert round(t["kcal"]) == 1680
+    assert round(t["carb_g"]) == 105
 
 
 def test_energia_faixas():
