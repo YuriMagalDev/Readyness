@@ -10,7 +10,7 @@ from bot.nutrition import (
     parse_peso_arg, build_progress_report,
 )
 from src.nutrition.config import nutrition_config
-from bot.nutrition_format import format_meal_confirm, format_nutri_context
+from bot.nutrition_format import format_meal_confirm, format_nutri_context, format_macros_today
 from bot.runs import filter_runs
 from src.services_core import save_checkin, build_trends, build_run_detail
 from src.extractors import activity_from_garmin
@@ -70,7 +70,9 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/semana — resumo 7d\n/mes — resumo 30d\n"
         "/plano — registrar/ver o plano da semana\n"
         "/comi — registrar refeição\n"
-        "/dieta — macros e energia do dia\n"
+        "/dieta — macros e energia do dia (gráfico)\n"
+        "/macros — macros de hoje em texto (consumido vs alvo)\n"
+        "/progresso — tendência de peso, BF estimado, ajuste\n"
         "/ref — refeições de hoje (editar/apagar item)\n"
         "/cancelar — cancelar registro em andamento"
     )
@@ -576,6 +578,14 @@ async def on_activity_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 # ── nutrição: peso semanal + progresso ─────────────────────────────────────────
+
+async def cmd_macros(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    day = dt.date.today().isoformat()
+    panel = today_panel(context.bot_data["db_path"], _profile(context), day)
+    await update.message.reply_text(
+        format_macros_today(panel["today"]), parse_mode="Markdown"
+    )
+
 
 async def cmd_peso(update: Update, context: ContextTypes.DEFAULT_TYPE):
     arg = " ".join(context.args) if context.args else ""

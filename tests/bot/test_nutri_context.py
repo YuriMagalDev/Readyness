@@ -28,3 +28,27 @@ def test_proteina_batida_sem_faltaram():
     assert "🟢" in txt and "170/165g" in txt
     assert "faltaram" not in txt
     assert "saldo" not in txt   # saldo None -> omitido
+
+
+from bot.nutrition_format import format_macros_today
+
+
+def test_macros_today_falta_e_ok():
+    today = {
+        "totals": {"kcal": 1200, "p": 90, "c": 60, "g": 60},
+        "target": {"kcal": 1780, "protein_g": 180, "carb_g": 130, "fat_g": 60},
+        "ea": {"ea": 15.9, "faixa": "vermelho"},
+        "training": False,
+    }
+    txt = format_macros_today(today)
+    assert "Macros de hoje" in txt and "descanso" in txt
+    assert "Proteína: 90/180g (falta 90)" in txt
+    assert "Gordura: 60/60g ✅" in txt        # bateu
+    assert "🔴" in txt
+
+
+def test_macros_today_treino_label():
+    today = {"totals": {"kcal": 0, "p": 0, "c": 0, "g": 0},
+             "target": {"kcal": 2060, "protein_g": 180, "carb_g": 200, "fat_g": 60},
+             "ea": {}, "training": True}
+    assert "treino" in format_macros_today(today)

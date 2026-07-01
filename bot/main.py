@@ -48,6 +48,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("dieta", handlers.cmd_dieta))
     app.add_handler(CommandHandler("ref", handlers.cmd_ref))
     app.add_handler(CommandHandler("cancelar", handlers.cmd_cancelar))
+    app.add_handler(CommandHandler("macros", handlers.cmd_macros))
     app.add_handler(CommandHandler("peso", handlers.cmd_peso))
     app.add_handler(CommandHandler("progresso", handlers.cmd_progresso))
     app.add_handler(CallbackQueryHandler(handlers.on_adjust_button, pattern=r"^adj:"))

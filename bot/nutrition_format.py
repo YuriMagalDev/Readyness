@@ -25,6 +25,31 @@ def format_nutri_context(yesterday: dict) -> str | None:
     return "📊 Ontem (contexto, não muda o veredito): " + " · ".join(partes)
 
 
+def _linha_macro(nome, feito, alvo, unidade=""):
+    falta = alvo - feito
+    base = f"{nome}: {feito:.0f}/{alvo:.0f}{unidade}"
+    if falta > 0.5:
+        return base + f" (falta {falta:.0f})"
+    return base + " ✅"
+
+
+def format_macros_today(today: dict) -> str:
+    """Resumo texto rápido dos macros de hoje: consumido vs alvo (comando /macros)."""
+    tot = (today or {}).get("totals") or {}
+    tgt = (today or {}).get("target") or {}
+    ea = (today or {}).get("ea") or {}
+    tipo = "treino" if (today or {}).get("training") else "descanso"
+    lines = [f"🍽 *Macros de hoje* ({tipo})"]
+    lines.append(_linha_macro("Kcal", tot.get("kcal", 0), tgt.get("kcal", 0)))
+    lines.append(_linha_macro("Proteína", tot.get("p", 0), tgt.get("protein_g", 0), "g"))
+    lines.append(_linha_macro("Carbo", tot.get("c", 0), tgt.get("carb_g", 0), "g"))
+    lines.append(_linha_macro("Gordura", tot.get("g", 0), tgt.get("fat_g", 0), "g"))
+    if ea.get("faixa"):
+        emoji = _FAIXA_EMOJI.get(ea["faixa"], "")
+        lines.append(f"Energia disponível: {emoji} {ea.get('ea', 0):.0f}")
+    return "\n".join(lines)
+
+
 _SOURCE_TAG = {"ia": " ~IA", "foto": " (rótulo)", "manual": " (cadastro)"}
 
 
