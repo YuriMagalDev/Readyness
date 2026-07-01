@@ -67,6 +67,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/plano — registrar/ver o plano da semana\n"
         "/comi — registrar refeição\n"
         "/dieta — macros e energia do dia\n"
+        "/ref — refeições de hoje (editar/apagar item)\n"
         "/cancelar — cancelar registro em andamento"
     )
 
@@ -347,6 +348,16 @@ async def on_nutrition_button(update, context):
             f"✅ {(comi.get('meal') or 'refeição').capitalize()} salva. "
             f"Hoje: {round(t['kcal'])} kcal · P {t['p']:.0f}")
         return
+    if q.data.startswith("nut:rmitem:"):
+        try:
+            item_id = int(q.data.split(":", 2)[2])
+        except (ValueError, IndexError):
+            await q.edit_message_text("Item inválido.")
+            return
+        store.delete_meal_item(db_path, item_id)
+        txt, kb = _ref_view(db_path, day)
+        await q.edit_message_text(txt, reply_markup=kb)
+        return
     if q.data == "nut:comi_undo":
         comi = context.user_data.get("comi")
         if not comi or not comi.get("items"):
@@ -401,6 +412,31 @@ async def on_nutrition_button(update, context):
         context.user_data["awaiting_manual"] = name
         await q.edit_message_text(
             "Manda: kcal proteína carbo gordura (ex.: 120 24 3 1.5)")
+
+
+def _ref_view(db_path, day):
+    """(texto, teclado) das refeições de hoje — um 🗑 por item pra apagar."""
+    items = store.list_meal_items(db_path, day)
+    if not items:
+        return "Nenhuma refeição registrada hoje.", None
+    linhas = ["Refeições de hoje — toque pra apagar o item errado:"]
+    botoes = []
+    for it in items:
+        food = it.get("food") or "?"
+        linhas.append(f"• {(it.get('meal') or '').capitalize()}: {food} "
+                      f"{round(it.get('grams') or 0)}g · {round(it.get('kcal') or 0)} kcal")
+        botoes.append([InlineKeyboardButton(
+            f"🗑 {food} {round(it.get('grams') or 0)}g",
+            callback_data=f"nut:rmitem:{it['id']}")])
+    return "\n".join(linhas), InlineKeyboardMarkup(botoes)
+
+
+async def cmd_ref(update, context):
+    if not _authorized(update, context):
+        return
+    db_path = context.bot_data["db_path"]
+    txt, kb = _ref_view(db_path, dt.date.today().isoformat())
+    await update.message.reply_text(txt, reply_markup=kb)
 
 
 async def cmd_dieta(update, context):

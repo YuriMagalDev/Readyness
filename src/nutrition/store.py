@@ -93,6 +93,22 @@ def garmin_total_kcal(db_path, date):
     return row["calories_total"] if row and row["calories_total"] is not None else None
 
 
+def list_meal_items(db_path, date) -> list:
+    """Itens do dia com id (pra editar/apagar item específico)."""
+    with _session(db_path) as conn:
+        rows = conn.execute(
+            "SELECT id, meal, food, grams, kcal FROM meal_log WHERE date=? ORDER BY id",
+            (date,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def delete_meal_item(db_path, item_id) -> bool:
+    with _session(db_path) as conn:
+        cur = conn.execute("DELETE FROM meal_log WHERE id=?", (item_id,))
+    return cur.rowcount > 0
+
+
 def delete_last_meal_item(db_path, date) -> bool:
     with _session(db_path) as conn:
         row = conn.execute(

@@ -74,3 +74,16 @@ def test_garmin_kcal_missing_date(tmp_path):
     p = _db(tmp_path)
     assert store.garmin_total_kcal(p, "2026-06-01") is None
     assert store.garmin_active_kcal(p, "2026-06-01") is None
+
+
+def test_list_e_delete_meal_item(tmp_path):
+    p = _db(tmp_path)
+    store.save_meal_items(p, "2026-06-30", "almoço", [
+        {"recognized": True, "food": "arroz", "grams": 100, "kcal": 128, "p": 2, "c": 28, "g": 0},
+        {"recognized": True, "food": "frango", "grams": 200, "kcal": 318, "p": 62, "c": 0, "g": 7},
+    ])
+    itens = store.list_meal_items(p, "2026-06-30")
+    assert len(itens) == 2 and "id" in itens[0]
+    assert store.delete_meal_item(p, itens[0]["id"]) is True
+    assert len(store.list_meal_items(p, "2026-06-30")) == 1
+    assert store.delete_meal_item(p, 99999) is False
