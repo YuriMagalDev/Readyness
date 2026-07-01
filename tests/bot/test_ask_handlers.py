@@ -42,6 +42,7 @@ def test_on_ask_geral_abre_thread():
     q.answer = AsyncMock()
     q.edit_message_text = AsyncMock()
     u = MagicMock(callback_query=q)
+    u.effective_chat.id = 1
     with patch("bot.handlers.ask_build_general", return_value={"readiness": {}}):
         asyncio.run(handlers.on_ask_button(u, c))
     assert ask.is_active(c.user_data) is True
@@ -56,5 +57,6 @@ def test_on_ask_fim_fecha_thread():
     q.answer = AsyncMock()
     q.edit_message_text = AsyncMock()
     u = MagicMock(callback_query=q)
+    u.effective_chat.id = 1
     asyncio.run(handlers.on_ask_button(u, c))
     assert ask.is_active(c.user_data) is False

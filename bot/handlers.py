@@ -610,6 +610,8 @@ async def cmd_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def on_ask_button(update, context):
+    if not _authorized(update, context):
+        return
     q = update.callback_query
     await q.answer()
     data = q.data
