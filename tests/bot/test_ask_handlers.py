@@ -60,3 +60,42 @@ def test_on_ask_fim_fecha_thread():
     u.effective_chat.id = 1
     asyncio.run(handlers.on_ask_button(u, c))
     assert ask.is_active(c.user_data) is False
+
+
+def test_text_thread_ativa_chama_coach():
+    c = _ctx()
+    ask.open_thread(c.user_data, mode="geral", run_id=None, context={"readiness": {}})
+    u = _update()
+    u.message.text = "é certo desacelerar no fim?"
+    with patch("bot.handlers.ask_coach", return_value="depende do objetivo") as m:
+        asyncio.run(handlers.on_text_macros(u, c))
+    # histórico acumulou pergunta + resposta
+    assert ask.history(c.user_data)[-2:] == [
+        {"role": "user", "content": "é certo desacelerar no fim?"},
+        {"role": "assistant", "content": "depende do objetivo"},
+    ]
+    # resposta enviada com botão finalizar
+    kb = u.message.reply_text.call_args[1]["reply_markup"]
+    assert kb.inline_keyboard[0][0].callback_data == "ask:fim"
+    assert m.call_args[1]["depth"] == "deep"
+
+
+def test_text_sem_thread_nao_chama_coach():
+    c = _ctx()
+    u = _update()
+    u.message.text = "qualquer coisa"
+    with patch("bot.handlers.ask_coach") as m:
+        asyncio.run(handlers.on_text_macros(u, c))
+    m.assert_not_called()
+
+
+def test_text_thread_coach_falha_mantem_thread():
+    c = _ctx()
+    ask.open_thread(c.user_data, mode="geral", run_id=None, context={})
+    u = _update()
+    u.message.text = "pergunta"
+    with patch("bot.handlers.ask_coach", side_effect=RuntimeError("timeout")):
+        asyncio.run(handlers.on_text_macros(u, c))
+    assert ask.is_active(c.user_data) is True   # thread segue aberta
+    txt = u.message.reply_text.call_args[0][0]
+    assert "tenta de novo" in txt.lower()

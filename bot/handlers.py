@@ -75,6 +75,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/comi — registrar refeição\n"
         "/dieta — macros e energia do dia (gráfico)\n"
         "/macros — macros de hoje em texto (consumido vs alvo)\n"
+        "/ask — conversar com o coach (corrida ou assunto geral)\n"
         "/progresso — tendência de peso, BF estimado, ajuste\n"
         "/ref — refeições de hoje (editar/apagar item)\n"
         "/cancelar — cancelar registro em andamento"
@@ -502,8 +503,12 @@ async def on_photo(update, context):
 
 
 async def on_text_macros(update, context):
-    """Roteia texto solto: macros pendentes > alimentos da sessão /comi."""
+    """Roteia texto solto: thread /ask ativa > macros pendentes > alimentos da sessão /comi."""
     if not _authorized(update, context):
+        return
+    # thread /ask ativa tem prioridade sobre o fluxo de macros
+    if ask.is_active(context.user_data):
+        await _handle_ask_turn(update, context)
         return
     # nome pendente após foto do rótulo: texto = nome do alimento -> cadastra com os macros lidos.
     pend = context.user_data.get("awaiting_food_name")
@@ -648,6 +653,21 @@ async def on_ask_button(update, context):
         ask.open_thread(context.user_data, mode="run", run_id=activity_id, context=ctx)
         await q.edit_message_text("Manda tua pergunta sobre essa corrida 👇")
         return
+
+
+async def _handle_ask_turn(update, context):
+    pergunta = update.message.text.strip()
+    ask.append_user(context.user_data, pergunta)
+    try:
+        resp = ask_coach(ask.history(context.user_data),
+                         ask.get_context(context.user_data), depth="deep")
+    except Exception:  # noqa: BLE001 — mantém a thread aberta pra nova tentativa
+        # remove a pergunta que não foi respondida do histórico
+        context.user_data["ask_thread"]["history"].pop()
+        await update.message.reply_text("Não consegui responder agora, tenta de novo.")
+        return
+    ask.append_assistant(context.user_data, resp)
+    await update.message.reply_text(resp, reply_markup=_ASK_FIM_KB)
 
 
 async def cmd_peso(update: Update, context: ContextTypes.DEFAULT_TYPE):

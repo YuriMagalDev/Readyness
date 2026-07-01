@@ -54,6 +54,8 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(handlers.on_adjust_button, pattern=r"^adj:"))
     app.add_handler(CallbackQueryHandler(handlers.on_nutrition_button, pattern=r"^nut:"))
     app.add_handler(CallbackQueryHandler(handlers.on_day_plan_button, pattern=r"^dp:"))
+    app.add_handler(CommandHandler("ask", handlers.cmd_ask))
+    app.add_handler(CallbackQueryHandler(handlers.on_ask_button, pattern=r"^ask:"))
     app.add_handler(MessageHandler(filters.PHOTO, handlers.on_photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handlers.on_text_macros))
 
