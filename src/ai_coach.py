@@ -44,4 +44,10 @@ def ask_coach(messages, context: dict, depth: str = "quick") -> str:
         system=system,
         messages=messages,
     )
-    return message.content[0].text
+    # Sonnet 5 emite ThinkingBlock antes do texto (extended thinking on por padrão).
+    # Pega o primeiro bloco que tem texto; ignora blocos de raciocínio.
+    for block in message.content:
+        text = getattr(block, "text", None)
+        if text is not None:
+            return text
+    return ""

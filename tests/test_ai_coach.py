@@ -56,3 +56,16 @@ def test_ask_coach_string_still_works(tmp_path, monkeypatch):
         ai_coach.ask_coach("oi", {}, depth="quick")
     sent = fake_client.messages.create.call_args[1]["messages"]
     assert sent == [{"role": "user", "content": "oi"}]
+
+
+def test_ask_coach_skips_thinking_block(tmp_path, monkeypatch):
+    _fake_profile(tmp_path, monkeypatch)
+    thinking = MagicMock(spec=[])          # bloco de raciocínio: sem atributo .text
+    textblock = MagicMock(text="resposta real")
+    fake_msg = MagicMock()
+    fake_msg.content = [thinking, textblock]
+    fake_client = MagicMock()
+    fake_client.messages.create.return_value = fake_msg
+    with patch("src.ai_coach.anthropic.Anthropic", return_value=fake_client):
+        out = ai_coach.ask_coach("oi", {}, depth="deep")
+    assert out == "resposta real"
