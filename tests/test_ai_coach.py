@@ -69,3 +69,17 @@ def test_ask_coach_skips_thinking_block(tmp_path, monkeypatch):
     with patch("src.ai_coach.anthropic.Anthropic", return_value=fake_client):
         out = ai_coach.ask_coach("oi", {}, depth="deep")
     assert out == "resposta real"
+
+
+def test_ask_coach_extra_system_appended(tmp_path, monkeypatch):
+    _fake_profile(tmp_path, monkeypatch)
+    fake_msg = MagicMock()
+    fake_msg.content = [MagicMock(text="r")]
+    fake_client = MagicMock()
+    fake_client.messages.create.return_value = fake_msg
+    with patch("src.ai_coach.anthropic.Anthropic", return_value=fake_client):
+        ai_coach.ask_coach("oi", {}, depth="deep", extra_system="SEM MARKDOWN")
+    system = fake_client.messages.create.call_args[1]["system"]
+    assert len(system) == 3
+    assert system[2]["text"] == "SEM MARKDOWN"
+    assert "cache_control" not in system[2]

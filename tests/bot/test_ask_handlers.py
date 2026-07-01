@@ -55,11 +55,14 @@ def test_on_ask_fim_fecha_thread():
     q = MagicMock()
     q.data = "ask:fim"
     q.answer = AsyncMock()
-    q.edit_message_text = AsyncMock()
+    q.edit_message_reply_markup = AsyncMock()
+    q.message.reply_text = AsyncMock()
     u = MagicMock(callback_query=q)
     u.effective_chat.id = 1
     asyncio.run(handlers.on_ask_button(u, c))
     assert ask.is_active(c.user_data) is False
+    # tira só o botão (mantém a resposta), não sobrescreve o texto
+    q.edit_message_reply_markup.assert_called_once_with(reply_markup=None)
 
 
 def test_text_thread_ativa_chama_coach():

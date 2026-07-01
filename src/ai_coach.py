@@ -15,10 +15,11 @@ def _load_athlete_profile() -> dict:
         raise FileNotFoundError("athlete_profile.json not found. Create it from the spec.")
     return json.loads(path.read_text(encoding="utf-8"))
 
-def ask_coach(messages, context: dict, depth: str = "quick") -> str:
+def ask_coach(messages, context: dict, depth: str = "quick", extra_system: str = None) -> str:
     """
     messages: str (uma pergunta) OU list[{"role","content"}] (thread com histórico).
     depth='quick' → Haiku ; depth='deep' → Sonnet.
+    extra_system: instrução extra de estilo (ex.: conversa /ask) — não afeta outros callers.
     """
     model = HAIKU if depth == "quick" else SONNET
     profile = _load_athlete_profile()
@@ -33,6 +34,8 @@ def ask_coach(messages, context: dict, depth: str = "quick") -> str:
         {"type": "text", "text": profile_block, "cache_control": {"type": "ephemeral"}},
         {"type": "text", "text": context_block},
     ]
+    if extra_system:
+        system.append({"type": "text", "text": extra_system})
 
     if isinstance(messages, str):
         messages = [{"role": "user", "content": messages}]

@@ -622,7 +622,8 @@ async def on_ask_button(update, context):
     data = q.data
     if data == "ask:fim":
         ask.close_thread(context.user_data)
-        await q.edit_message_text("Conversa encerrada. ✋ (/ask pra recomeçar)")
+        await q.edit_message_reply_markup(reply_markup=None)  # tira o botão, mantém a resposta
+        await q.message.reply_text("Conversa encerrada. ✋ (/ask pra recomeçar)")
         return
     if data == "ask:geral":
         ctx = ask_build_general(context.bot_data["db"], context.bot_data["db_path"],
@@ -681,12 +682,22 @@ def _split_message(text: str, limit: int = 4000) -> list[str]:
     return parts
 
 
+_ASK_STYLE = (
+    "Você está numa conversa curta por Telegram. Responda de forma objetiva e direta ao ponto: "
+    "vá direto à resposta, sem introdução nem repetir a pergunta. Poucas frases; use no máximo "
+    "1-2 parágrafos curtos, só estendendo se a pergunta pedir. TEXTO PURO, SEM markdown: nada de "
+    "asteriscos, hashtags, negrito ou listas formatadas. Se precisar listar, use travessão simples. "
+    "Fale como um coach que manda mensagem no chat, não como um artigo."
+)
+
+
 async def _handle_ask_turn(update, context):
     pergunta = update.message.text.strip()
     ask.append_user(context.user_data, pergunta)
     try:
         resp = ask_coach(ask.history(context.user_data),
-                         ask.get_context(context.user_data), depth="deep")
+                         ask.get_context(context.user_data), depth="deep",
+                         extra_system=_ASK_STYLE)
     except Exception:  # noqa: BLE001 — mantém a thread aberta pra nova tentativa
         # remove a pergunta que não foi respondida do histórico
         ask.pop_last(context.user_data)
