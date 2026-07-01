@@ -1,8 +1,15 @@
 _DEFAULTS = {
     "neat_factor": 1.3,
-    "deficit_kcal": 500,
-    "protein_g": 165,
+    "protein_g": 180,
     "fat_g": 60,
+    "carb_rest_g": 130,
+    "carb_train_g": 200,
+    "deficit_floor": 900,
+    "target_rate_low": -0.4,   # %/sem — ritmo alvo (perde mais)
+    "target_rate_high": -0.3,  # %/sem — ritmo alvo (perde menos); acima disso = travado
+    "fast_rate": -0.7,         # %/sem — abaixo disso = rápido demais
+    "bf_fat_frac": 0.85,       # fração da perda que é gordura
+    "kcal_adjust": 0,          # ajuste aplicado (proposto+confirmado)
     "ea_low": 25,
     "ea_ok": 30,
     "ex_kcal_treino": 300,
