@@ -283,10 +283,11 @@ async def cmd_comi(update, context):
     await update.message.reply_text(format_meal_confirm(parsed), reply_markup=kb)
 
 
-_COMI_KB = InlineKeyboardMarkup([[
-    InlineKeyboardButton("✅ finalizar", callback_data="nut:comi_fim"),
-    InlineKeyboardButton("📷 foto da tabela", callback_data="nut:comi_foto"),
-]])
+_COMI_KB = InlineKeyboardMarkup([
+    [InlineKeyboardButton("✅ finalizar", callback_data="nut:comi_fim"),
+     InlineKeyboardButton("↩ desfazer último", callback_data="nut:comi_undo")],
+    [InlineKeyboardButton("📷 foto da tabela", callback_data="nut:comi_foto")],
+])
 
 
 def _comi_running(comi: dict, extra=None) -> str:
@@ -345,6 +346,16 @@ async def on_nutrition_button(update, context):
         await q.edit_message_text(
             f"✅ {(comi.get('meal') or 'refeição').capitalize()} salva. "
             f"Hoje: {round(t['kcal'])} kcal · P {t['p']:.0f}")
+        return
+    if q.data == "nut:comi_undo":
+        comi = context.user_data.get("comi")
+        if not comi or not comi.get("items"):
+            await q.edit_message_text("Nada pra desfazer.", reply_markup=_COMI_KB)
+            return
+        removido = comi["items"].pop()
+        msg = f"↩ tirei: {removido.get('food', '?')}\n\n" + _comi_running(comi)
+        msg += "\n\nManda mais alimentos, ou finaliza."
+        await q.edit_message_text(msg, reply_markup=_COMI_KB)
         return
     if q.data == "nut:comi_foto":
         context.user_data["comi_foto"] = True
