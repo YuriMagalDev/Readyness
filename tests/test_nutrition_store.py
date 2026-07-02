@@ -124,3 +124,36 @@ def test_list_e_delete_meal_item(tmp_path):
     assert store.delete_meal_item(p, itens[0]["id"]) is True
     assert len(store.list_meal_items(p, "2026-06-30")) == 1
     assert store.delete_meal_item(p, 99999) is False
+
+
+def test_combo_roundtrip(tmp_path):
+    p = _db(tmp_path)
+    store.save_combo(p, "café", "3 ovos, 2 pão francês, 1 banana")
+    combos = store.get_combos(p)
+    assert len(combos) == 1
+    assert combos[0]["name"] == "café"
+    assert combos[0]["items_text"] == "3 ovos, 2 pão francês, 1 banana"
+
+
+def test_combo_sobrescreve_mesmo_nome(tmp_path):
+    p = _db(tmp_path)
+    store.save_combo(p, "café", "3 ovos")
+    store.save_combo(p, "café", "4 ovos, 1 banana")
+    combos = store.get_combos(p)
+    assert len(combos) == 1
+    assert combos[0]["items_text"] == "4 ovos, 1 banana"
+
+
+def test_combo_delete(tmp_path):
+    p = _db(tmp_path)
+    store.save_combo(p, "café", "3 ovos")
+    assert store.delete_combo(p, "café") is True
+    assert store.get_combos(p) == []
+    assert store.delete_combo(p, "café") is False
+
+
+def test_combos_ordenados_por_nome(tmp_path):
+    p = _db(tmp_path)
+    store.save_combo(p, "janta leve", "200g arroz")
+    store.save_combo(p, "café", "3 ovos")
+    assert [c["name"] for c in store.get_combos(p)] == ["café", "janta leve"]

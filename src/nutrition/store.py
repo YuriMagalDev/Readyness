@@ -175,5 +175,36 @@ def set_kcal_adjust(db_path, value):
         )
 
 
+def save_combo(db_path, name, items_text):
+    """Salva/sobrescreve um combo: nome -> texto cru de itens (re-parseado no uso)."""
+    with _session(db_path) as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO combos (name, items_text, created_at) VALUES (?,?,?)",
+            (name.strip(), items_text.strip(), dt.datetime.now().isoformat()),
+        )
+
+
+def get_combos(db_path) -> list:
+    with _session(db_path) as conn:
+        rows = conn.execute(
+            "SELECT name, items_text FROM combos ORDER BY name ASC"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_combo(db_path, name):
+    with _session(db_path) as conn:
+        row = conn.execute(
+            "SELECT name, items_text FROM combos WHERE name=?", (name,)
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def delete_combo(db_path, name) -> bool:
+    with _session(db_path) as conn:
+        cur = conn.execute("DELETE FROM combos WHERE name=?", (name,))
+    return cur.rowcount > 0
+
+
 def week_totals(db_path, dates) -> list:
     return [day_totals(db_path, d) for d in dates]

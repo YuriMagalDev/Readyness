@@ -45,6 +45,8 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(handlers.on_activity_button, pattern=r"^act:"))
     app.add_handler(CommandHandler("plano", handlers.cmd_plano))
     app.add_handler(CommandHandler("comi", handlers.cmd_comi))
+    app.add_handler(CommandHandler("combo", handlers.cmd_combo))
+    app.add_handler(CallbackQueryHandler(handlers.on_combo_button, pattern=r"^cmb:"))
     app.add_handler(CommandHandler("dieta", handlers.cmd_dieta))
     app.add_handler(CommandHandler("ref", handlers.cmd_ref))
     app.add_handler(CommandHandler("cancelar", handlers.cmd_cancelar))

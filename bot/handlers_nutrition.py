@@ -384,6 +384,139 @@ async def cmd_cancelar(update, context):
     await update.message.reply_text("Ok, cancelei o registro em andamento.")
 
 
+# ── combos: refeições repetidas em 2 toques ─────────────────────────────────────
+
+_COMBO_USO = ("Cadastre um combo assim:\n"
+              "/combo salvar café: 3 ovos, 2 pão francês, 1 banana\n"
+              "Depois é só chamar /combo e tocar nele pra registrar.")
+
+_COMBO_MEAL_KB = InlineKeyboardMarkup([
+    [InlineKeyboardButton("🌅 café da manhã", callback_data="cmb:meal:café da manhã"),
+     InlineKeyboardButton("🍽 almoço", callback_data="cmb:meal:almoço")],
+    [InlineKeyboardButton("🥪 lanche", callback_data="cmb:meal:lanche"),
+     InlineKeyboardButton("🌙 janta", callback_data="cmb:meal:janta")],
+])
+
+
+def _combo_resumo(items) -> str:
+    kcal = sum(it.get("kcal", 0) for it in items if it.get("recognized"))
+    p = sum(it.get("p", 0) for it in items if it.get("recognized"))
+    return f"{round(kcal)} kcal · P {p:.0f}"
+
+
+async def cmd_combo(update, context):
+    if not _authorized(update, context):
+        return
+    db_path = context.bot_data["db_path"]
+    text = update.message.text.partition(" ")[2].strip()
+
+    if text.lower().startswith("salvar"):
+        corpo = text[len("salvar"):].strip()
+        name, sep, itens = corpo.partition(":")
+        name, itens = name.strip(), itens.strip()
+        if not sep or not name or not itens:
+            await update.message.reply_text(_COMBO_USO)
+            return
+        parsed = parse_meal(itens, load_food_db(db_path), fuzzy=False)
+        unrec = [it for it in parsed["items"] if not it.get("recognized")]
+        if unrec:
+            nomes = ", ".join(it.get("name") or it.get("raw", "?") for it in unrec)
+            await update.message.reply_text(
+                f"Não conheço: {nomes}. Cadastra antes pelo /comi "
+                "(foto da tabela ou macros manuais) e salva o combo de novo.")
+            return
+        context.user_data["pending_combo"] = {"name": name, "items_text": itens}
+        kb = InlineKeyboardMarkup([[
+            InlineKeyboardButton("✅ salvar", callback_data="cmb:save"),
+            InlineKeyboardButton("✖ cancelar", callback_data="cmb:cancel"),
+        ]])
+        await update.message.reply_text(
+            format_meal_confirm({"meal": name, "items": parsed["items"]}), reply_markup=kb)
+        return
+
+    combos = store.get_combos(db_path)
+    if not combos:
+        await update.message.reply_text("Nenhum combo ainda.\n" + _COMBO_USO)
+        return
+    fdb = load_food_db(db_path)
+    rows = []
+    for cb in combos:
+        parsed = parse_meal(cb["items_text"], fdb, fuzzy=False)
+        rows.append([InlineKeyboardButton(
+            f"{cb['name']} — {_combo_resumo(parsed['items'])}",
+            callback_data=f"cmb:log:{cb['name']}")])
+    rows.append([InlineKeyboardButton("🗑 apagar um combo", callback_data="cmb:delmode")])
+    await update.message.reply_text(
+        "Teus combos — toca pra registrar:", reply_markup=InlineKeyboardMarkup(rows))
+
+
+async def on_combo_button(update, context):
+    if not _authorized(update, context):
+        return
+    q = update.callback_query
+    await q.answer()
+    db_path = context.bot_data["db_path"]
+    data = q.data
+
+    if data == "cmb:save":
+        pend = context.user_data.pop("pending_combo", None)
+        if not pend:
+            await q.edit_message_text("Sessão expirada. Refaça o /combo salvar.")
+            return
+        store.save_combo(db_path, pend["name"], pend["items_text"])
+        await q.edit_message_text(f"Combo \"{pend['name']}\" salvo. /combo pra usar. ✅")
+        return
+    if data == "cmb:cancel":
+        context.user_data.pop("pending_combo", None)
+        await q.edit_message_text("Ok, combo descartado.")
+        return
+    if data.startswith("cmb:log:"):
+        name = data.split(":", 2)[2]
+        context.user_data["combo_log"] = name
+        await q.edit_message_text(
+            f"Registrar \"{name}\" em qual refeição?", reply_markup=_COMBO_MEAL_KB)
+        return
+    if data.startswith("cmb:meal:"):
+        meal = data.split(":", 2)[2]
+        name = context.user_data.pop("combo_log", None)
+        if not name:
+            await q.edit_message_text("Sessão expirada. Chama o /combo de novo.")
+            return
+        combo = store.get_combo(db_path, name)
+        if not combo:
+            await q.edit_message_text("Esse combo não existe mais. /combo pra ver a lista.")
+            return
+        parsed = parse_meal(combo["items_text"], load_food_db(db_path), fuzzy=False)
+        if any(not it.get("recognized") for it in parsed["items"]):
+            await q.edit_message_text(
+                f"Item do combo \"{name}\" saiu da base — nada registrado. "
+                "Re-salva o combo com /combo salvar.")
+            return
+        day = dt.date.today().isoformat()
+        store.save_meal_items(db_path, day, meal, parsed["items"])
+        t = store.day_totals(db_path, day)
+        await q.edit_message_text(
+            f"✅ {meal.capitalize()} salva (combo {name}). "
+            f"Hoje: {round(t['kcal'])} kcal · P {t['p']:.0f}")
+        return
+    if data == "cmb:delmode":
+        combos = store.get_combos(db_path)
+        if not combos:
+            await q.edit_message_text("Nenhum combo pra apagar.")
+            return
+        rows = [[InlineKeyboardButton(f"🗑 {cb['name']}",
+                                      callback_data=f"cmb:del:{cb['name']}")]
+                for cb in combos]
+        await q.edit_message_text("Toca pra apagar:", reply_markup=InlineKeyboardMarkup(rows))
+        return
+    if data.startswith("cmb:del:"):
+        name = data.split(":", 2)[2]
+        ok = store.delete_combo(db_path, name)
+        await q.edit_message_text(f"Combo \"{name}\" apagado. 🗑" if ok
+                                  else "Não achei esse combo.")
+        return
+
+
 # ── nutrição: peso semanal + progresso ─────────────────────────────────────────
 
 async def cmd_macros(update: Update, context: ContextTypes.DEFAULT_TYPE):

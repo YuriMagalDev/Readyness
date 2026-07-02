@@ -91,6 +91,10 @@ class HistoryDB:
                 "date TEXT PRIMARY KEY, kg REAL NOT NULL, source TEXT, set_at TEXT)"
             )
             conn.execute(
+                "CREATE TABLE IF NOT EXISTS combos ("
+                "name TEXT PRIMARY KEY, items_text TEXT NOT NULL, created_at TEXT)"
+            )
+            conn.execute(
                 "CREATE TABLE IF NOT EXISTS custom_foods ("
                 "name TEXT PRIMARY KEY, base_unit TEXT NOT NULL, porcao_g REAL, "
                 "kcal REAL, p REAL, c REAL, g REAL, created_at TEXT NOT NULL, "

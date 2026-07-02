@@ -27,7 +27,7 @@ from bot.handlers_nutrition import (  # noqa: F401 — re-export (main.py + test
     cmd_comi, _comi_process_text, _COMI_KB, _comi_running, _comi_add_foods,
     on_nutrition_button, _ref_view, cmd_ref, cmd_dieta, on_photo,
     on_text_nutrition, cmd_cancelar, cmd_macros, cmd_peso, _week_context,
-    cmd_progresso, on_adjust_button, _food_like,
+    cmd_progresso, on_adjust_button, _food_like, cmd_combo, on_combo_button,
 )
 from bot.handlers_ask import (  # noqa: F401 — re-export (main.py + testes)
     _ASK_KB, _ASK_FIM_KB, _ASK_STYLE, _profile_file_exists, cmd_ask,
@@ -45,6 +45,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/semana — resumo 7d\n/mes — resumo 30d\n"
         "/plano — registrar/ver o plano da semana\n"
         "/comi — registrar refeição\n"
+        "/combo — registrar refeição repetida em 2 toques (salvar: /combo salvar nome: itens)\n"
         "/dieta — macros e energia do dia (gráfico)\n"
         "/macros — macros de hoje em texto (consumido vs alvo)\n"
         "/ask — conversar com o coach (corrida ou assunto geral)\n"
