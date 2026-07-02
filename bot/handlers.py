@@ -1,4 +1,5 @@
 import datetime as dt
+import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
@@ -699,6 +700,7 @@ async def _handle_ask_turn(update, context):
                          ask.get_context(context.user_data), depth="deep",
                          extra_system=_ASK_STYLE)
     except Exception:  # noqa: BLE001 — mantém a thread aberta pra nova tentativa
+        logging.exception("ask_coach falhou no /ask")
         # remove a pergunta que não foi respondida do histórico
         ask.pop_last(context.user_data)
         await update.message.reply_text("Não consegui responder agora, tenta de novo.")

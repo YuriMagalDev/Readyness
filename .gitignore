@@ -1,5 +1,7 @@
 .env
 athlete_profile.json
+*.key
+*.key.pub
 cache.db
 __pycache__/
 *.pyc
