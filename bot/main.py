@@ -69,6 +69,7 @@ def build_app() -> Application:
     jq.run_daily(jobs.job_alerts, time=dt.time(hour=10, minute=0, tzinfo=TZ))
     jq.run_daily(jobs.job_briefing, time=dt.time(hour=19, minute=0, tzinfo=TZ))
     jq.run_daily(jobs.job_day_plan, time=dt.time(hour=7, minute=30, tzinfo=TZ))
+    jq.run_daily(jobs.job_night_balance, time=dt.time(hour=22, minute=0, tzinfo=TZ))
     # peso semanal: domingo 09:00 (day 6 = domingo no python-telegram-bot)
     jq.run_daily(jobs.job_weekly_weight, time=dt.time(hour=9, minute=0, tzinfo=TZ), days=(6,))
     return app

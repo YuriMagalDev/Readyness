@@ -50,6 +50,40 @@ def format_macros_today(today: dict) -> str:
     return "\n".join(lines)
 
 
+def format_night_balance(today: dict, burn) -> str:
+    """Fechamento noturno: comido (diário) × gasto (Garmin) do dia corrente.
+
+    `burn` = calories_total do snapshot Garmin (None = sem sync hoje). Números
+    só de fonte real; sem Garmin a comparação degrada mas o comido sai.
+    """
+    tot = (today or {}).get("totals") or {}
+    tgt = (today or {}).get("target") or {}
+    tipo = "treino" if (today or {}).get("training") else "descanso"
+    eaten = tot.get("kcal", 0) or 0
+
+    lines = [f"🌙 *Fechamento do dia* ({tipo})"]
+    lines.append(f"Comido: {round(eaten)}/{round(tgt.get('kcal', 0))} kcal")
+    if burn is None:
+        lines.append("Gasto Garmin: sem dados hoje (relógio não sincronizou)")
+    else:
+        lines.append(f"Gasto Garmin (até agora): {round(burn)} kcal")
+        saldo = eaten - burn
+        if saldo < 0:
+            lines.append(f"Saldo: déficit {abs(round(saldo))} kcal 💪")
+        elif saldo > 0:
+            lines.append(f"Saldo: superávit {round(saldo)} kcal ⚠️")
+        else:
+            lines.append("Saldo: zerado")
+    p, alvo_p = tot.get("p", 0) or 0, tgt.get("protein_g", 0) or 0
+    linha_p = f"Proteína: {round(p)}/{round(alvo_p)}g"
+    if alvo_p and p < alvo_p:
+        linha_p += f" (faltam {round(alvo_p - p)})"
+    else:
+        linha_p += " ✅"
+    lines.append(linha_p)
+    return "\n".join(lines)
+
+
 _SOURCE_TAG = {"ia": " ~IA", "foto": " (rótulo)", "manual": " (cadastro)"}
 
 

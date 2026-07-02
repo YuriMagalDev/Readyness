@@ -147,3 +147,39 @@ async def test_job_morning_degrada_quando_garmin_falha(tmp_path, monkeypatch):
     assert ctx.bot.send_message.await_count == 1  # mandou degradado
     await jobs.job_morning(ctx)
     assert ctx.bot.send_message.await_count == 1  # não re-tenta no mesmo dia
+
+
+@pytest.mark.asyncio
+async def test_job_night_balance_envia_uma_vez(tmp_path, monkeypatch):
+    p = str(tmp_path / "h.db")
+    db = HistoryDB(db_path=p)
+    import src.nutrition.store as store
+    store.save_meal_items(p, dt.date.today().isoformat(), "janta",
+                          [{"recognized": True, "food": "arroz", "grams": 100,
+                            "kcal": 500, "p": 30, "c": 60, "g": 10}])
+    monkeypatch.setattr(jobs, "Ingestor", lambda c, d: MagicMock(sync_today=lambda: None))
+    ctx = _job_ctx(db, MagicMock())
+    ctx.bot_data["db_path"] = p
+    ctx.bot_data["profile"] = {"peso_kg": 108, "percentual_gordura": 30}
+    await jobs.job_night_balance(ctx)
+    assert ctx.bot.send_message.await_count == 1
+    txt = ctx.bot.send_message.call_args[1]["text"]
+    assert "500" in txt and "Fechamento" in txt
+    await jobs.job_night_balance(ctx)
+    assert ctx.bot.send_message.await_count == 1   # guard: 1x por dia
+
+
+@pytest.mark.asyncio
+async def test_job_night_balance_degrada_sem_garmin(tmp_path, monkeypatch):
+    p = str(tmp_path / "h.db")
+    db = HistoryDB(db_path=p)
+    def _boom(c, d):
+        raise RuntimeError("429")
+    monkeypatch.setattr(jobs, "Ingestor", _boom)
+    ctx = _job_ctx(db, MagicMock())
+    ctx.bot_data["db_path"] = p
+    ctx.bot_data["profile"] = {"peso_kg": 108, "percentual_gordura": 30}
+    await jobs.job_night_balance(ctx)
+    assert ctx.bot.send_message.await_count == 1
+    txt = ctx.bot.send_message.call_args[1]["text"]
+    assert "sem dados" in txt.lower()

@@ -188,6 +188,38 @@ async def job_alerts(context: ContextTypes.DEFAULT_TYPE):
             db.set_state(key, "0")
 
 
+_NIGHT_BALANCE_DATE = "night_balance_date"
+
+
+async def job_night_balance(context: ContextTypes.DEFAULT_TYPE):
+    """22:00 — fechamento do dia: comido (diário) × gasto (Garmin) + proteína.
+
+    Sincroniza o Garmin antes pra pegar o calories_total mais fresco; sem sync
+    a mensagem degrada (comido sai, comparação avisa que faltou o relógio).
+    """
+    from bot.nutrition import today_panel
+    from bot.nutrition_format import format_night_balance
+    import src.nutrition.store as store
+
+    cfg = context.bot_data["cfg"]
+    db = context.bot_data["db"]
+    db_path = context.bot_data["db_path"]
+    day = dt.date.today().isoformat()
+    if db.get_state(_NIGHT_BALANCE_DATE) == day:
+        return
+    try:
+        Ingestor(context.bot_data["client"], db).sync_today()
+    except Exception as e:  # noqa: BLE001 — Garmin fora: manda com o que tem no DB
+        _log.warning("job_night_balance: sync falhou: %s", e)
+    panel = today_panel(db_path, context.bot_data.get("profile") or {}, day)
+    burn = store.garmin_total_kcal(db_path, day)
+    await context.bot.send_message(
+        chat_id=cfg.chat_id,
+        text=format_night_balance(panel["today"], burn),
+        parse_mode="Markdown")
+    db.set_state(_NIGHT_BALANCE_DATE, day)
+
+
 async def job_weekly_weight(context: ContextTypes.DEFAULT_TYPE):
     """Pergunta o peso da semana (cadência semanal proposital; pesar todo dia é ruído)."""
     cfg = context.bot_data["cfg"]
