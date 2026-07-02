@@ -68,3 +68,41 @@ def test_night_balance_sem_garmin_degrada():
 def test_night_balance_proteina_ok():
     txt = format_night_balance(_today(p=165), burn=2600)
     assert "165/160" in txt and "✅" in txt
+
+
+# ── format_dieta_text ───────────────────────────────────────────────────────────
+
+from bot.nutrition_format import format_dieta_text
+
+
+def test_dieta_text_mostra_faltas_e_sugestoes():
+    today = _today(kcal=1445, p=115)
+    sug = [{"food": "peito de frango grelhado", "grams": 140, "kcal": 223, "p": 43}]
+    meals = [{"meal": "café da manhã", "kcal": 480, "p": 32,
+              "first_at": "2026-07-01T08:12:00"}]
+    txt = format_dieta_text(today, meals, sug)
+    assert "faltam" in txt.lower()
+    assert "620" in txt                     # kcal restantes
+    assert "45" in txt                      # proteína restante
+    assert "140g peito de frango grelhado" in txt
+    assert "café da manhã" in txt.lower() and "08:12" in txt
+
+
+def test_dieta_text_proteina_fechada():
+    today = _today(kcal=1900, p=165)
+    txt = format_dieta_text(today, [], [])
+    assert "✅" in txt
+    assert "faltam" not in txt.split("\n")[1].lower() or "proteína" not in txt.lower().split("faltam")[0]
+
+
+def test_dieta_text_sem_registro():
+    today = _today(kcal=0, p=0)
+    txt = format_dieta_text(today, [], [])
+    assert "nenhuma refeição" in txt.lower() or "nada registrado" in txt.lower()
+
+
+def test_dieta_text_meal_null_vira_sem_nome():
+    today = _today()
+    meals = [{"meal": None, "kcal": 300, "p": 20, "first_at": "2026-07-01T10:00:00"}]
+    txt = format_dieta_text(today, meals, [])
+    assert "10:00" in txt

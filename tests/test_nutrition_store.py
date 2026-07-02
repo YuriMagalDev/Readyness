@@ -157,3 +157,52 @@ def test_combos_ordenados_por_nome(tmp_path):
     store.save_combo(p, "janta leve", "200g arroz")
     store.save_combo(p, "café", "3 ovos")
     assert [c["name"] for c in store.get_combos(p)] == ["café", "janta leve"]
+
+
+def test_meals_of_day_agrupa_com_hora(tmp_path):
+    p = _db(tmp_path)
+    store.save_meal_items(p, "2026-07-01", "café da manhã",
+                          [{"recognized": True, "food": "ovo", "grams": 100,
+                            "kcal": 150, "p": 12, "c": 1, "g": 10}])
+    store.save_meal_items(p, "2026-07-01", "almoço",
+                          [{"recognized": True, "food": "arroz", "grams": 100,
+                            "kcal": 128, "p": 2.5, "c": 28, "g": 0.2},
+                           {"recognized": True, "food": "frango", "grams": 150,
+                            "kcal": 239, "p": 46, "c": 0, "g": 5}])
+    meals = store.meals_of_day(p, "2026-07-01")
+    assert [m["meal"] for m in meals] == ["café da manhã", "almoço"]
+    almoco = meals[1]
+    assert round(almoco["kcal"]) == 367 and almoco["p"] == 48.5
+    assert almoco["first_at"]            # hora do primeiro registro presente
+
+
+def test_meals_of_day_meal_null_vira_grupo(tmp_path):
+    p = _db(tmp_path)
+    store.save_meal_items(p, "2026-07-01", None,
+                          [{"recognized": True, "food": "ovo", "grams": 50,
+                            "kcal": 75, "p": 6, "c": 0.5, "g": 5}])
+    meals = store.meals_of_day(p, "2026-07-01")
+    assert len(meals) == 1 and meals[0]["meal"] is None
+
+
+def test_day_totals_conta_meal_null(tmp_path):
+    p = _db(tmp_path)
+    store.save_meal_items(p, "2026-07-01", None,
+                          [{"recognized": True, "food": "ovo", "grams": 50,
+                            "kcal": 75, "p": 6, "c": 0.5, "g": 5}])
+    store.save_meal_items(p, "2026-07-01", "janta",
+                          [{"recognized": True, "food": "arroz", "grams": 100,
+                            "kcal": 128, "p": 2.5, "c": 28, "g": 0.2}])
+    assert store.day_totals(p, "2026-07-01")["n_meals"] == 2
+
+
+def test_frequent_foods_ordena_por_uso(tmp_path):
+    p = _db(tmp_path)
+    for _ in range(3):
+        store.save_meal_items(p, "2026-07-01", "almoço",
+                              [{"recognized": True, "food": "frango", "grams": 100,
+                                "kcal": 159, "p": 31, "c": 0, "g": 3.6}])
+    store.save_meal_items(p, "2026-07-01", "janta",
+                          [{"recognized": True, "food": "arroz", "grams": 100,
+                            "kcal": 128, "p": 2.5, "c": 28, "g": 0.2}])
+    assert store.frequent_foods(p)[:2] == ["frango", "arroz"]

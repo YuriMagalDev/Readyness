@@ -68,7 +68,7 @@ def day_totals(db_path, date) -> dict:
         row = conn.execute(
             "SELECT COALESCE(SUM(kcal),0) k, COALESCE(SUM(p),0) p, "
             "COALESCE(SUM(c),0) c, COALESCE(SUM(g),0) g, "
-            "COUNT(DISTINCT meal) nm, MAX(logged_at) last "
+            "COUNT(DISTINCT COALESCE(meal, '(sem nome)')) nm, MAX(logged_at) last "
             "FROM meal_log WHERE date=?", (date,),
         ).fetchone()
     return {"kcal": row["k"], "p": row["p"], "c": row["c"], "g": row["g"],
@@ -173,6 +173,27 @@ def set_kcal_adjust(db_path, value):
             "INSERT OR REPLACE INTO bot_state (key, value) VALUES ('nutri_kcal_adjust', ?)",
             (str(int(value)),),
         )
+
+
+def meals_of_day(db_path, date) -> list:
+    """Refeições do dia agrupadas, com hora do primeiro registro, em ordem cronológica."""
+    with _session(db_path) as conn:
+        rows = conn.execute(
+            "SELECT meal, COALESCE(SUM(kcal),0) kcal, COALESCE(SUM(p),0) p, "
+            "MIN(logged_at) first_at FROM meal_log WHERE date=? "
+            "GROUP BY meal ORDER BY first_at", (date,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def frequent_foods(db_path, limit=10) -> list:
+    """Alimentos mais registrados (nomes resolvidos), do mais pro menos usado."""
+    with _session(db_path) as conn:
+        rows = conn.execute(
+            "SELECT food, COUNT(*) n FROM meal_log WHERE food IS NOT NULL "
+            "GROUP BY food ORDER BY n DESC, food LIMIT ?", (limit,),
+        ).fetchall()
+    return [r["food"] for r in rows]
 
 
 def save_combo(db_path, name, items_text):

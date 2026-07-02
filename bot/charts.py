@@ -49,7 +49,7 @@ def _ring(ax, frac, label, value_txt, color):
 
 
 def nutrition_panel_png(panel: dict, *, titulo: str = "") -> "io.BytesIO":
-    """Two-part panel: TODAY rings (protein-emphasized) + YESTERDAY bar summary."""
+    """Painel do dia em barras horizontais (proteína dominante) + rodapé de ontem."""
     today = panel.get("today", {})
     yday = panel.get("yesterday", {})
 
@@ -58,97 +58,74 @@ def nutrition_panel_png(panel: dict, *, titulo: str = "") -> "io.BytesIO":
     ea = today.get("ea", {})
 
     def frac(cur, tot):
-        return (cur / tot) if tot else 0.0
+        return max(0.0, min(1.0, (cur / tot) if tot else 0.0))
 
-    # ── layout: anéis empilhados (legenda ao lado de cada) + resumo de ontem ────
-    fig = plt.figure(figsize=(7.5, 9.5))
-    fig.patch.set_facecolor("#1e1e1e")
+    fig = plt.figure(figsize=(8, 5.6))
+    fig.patch.set_facecolor("#16181d")
+    ax = fig.add_axes([0.05, 0.20, 0.90, 0.68])
+    ax.set_facecolor("#16181d")
+    ax.axis("off")
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 4)
 
-    # linhas: proteína (dominante) · kcal · carbo · gordura · ontem
-    gs = fig.add_gridspec(5, 1, height_ratios=[1.25, 1.0, 1.0, 1.0, 1.15], hspace=0.35)
-
-    # Proteína — anel dominante (fonte maior), legenda ao lado
-    ax_prot = fig.add_subplot(gs[0, 0])
-    prot_cur = totals.get("p", 0)
-    prot_tgt = target.get("protein_g", 1)
-    prot_falta = max(0.0, prot_tgt - prot_cur)
-    prot_color = "#3b7dd8"
-    ax_prot.pie(
-        [frac(prot_cur, prot_tgt), max(0.0, 1 - frac(prot_cur, prot_tgt))],
-        colors=[prot_color, "#2b2b2b"], startangle=90, counterclock=False,
-        radius=1.0, wedgeprops=dict(width=0.40, edgecolor="none"),
-    )
-    ax_prot.set_aspect("equal")
-    ax_prot.set_xlim(-3.2, 3.0)
-    ax_prot.set_ylim(-1.2, 1.2)
-    ax_prot.text(-1.45, 0, f"{round(prot_cur)}/{round(prot_tgt)}g",
-                 ha="right", va="center", fontsize=16, color="#f0f0f0", fontweight="bold",
-                 clip_on=False)
-    prot_leg = "PROTEÍNA" + (f"\nfaltam {round(prot_falta)}g" if prot_falta > 0 else " ✓")
-    ax_prot.text(1.45, 0, prot_leg, ha="left", va="center",
-                 fontsize=16, color=prot_color, fontweight="bold", clip_on=False)
-
-    # kcal · carbo · gordura — um anel por linha, legenda ao lado
-    specs = [
-        ("kcal", totals.get("kcal", 0), target.get("kcal", 0),
-         _FAIXA_COR.get(ea.get("faixa"), "#3b7dd8"),
-         f"KCAL · EA {ea.get('faixa','?')}"),
-        ("carb", totals.get("c", 0), target.get("carb_g", 0), "#d99a14", "CARBO"),
-        ("gord", totals.get("g", 0), target.get("fat_g", 0), "#9b59b6", "GORDURA"),
+    rows = [
+        # (y, altura, label, cur, tgt, unid, cor, fontsize)
+        (3, 0.52, "PROTEÍNA", totals.get("p", 0), target.get("protein_g", 0), "g",
+         "#3b7dd8", 17),
+        (2, 0.38, "KCAL", totals.get("kcal", 0), target.get("kcal", 0), "",
+         "#2fa3a0", 13),
+        (1, 0.38, "CARBO", totals.get("c", 0), target.get("carb_g", 0), "g",
+         "#d99a14", 13),
+        (0, 0.38, "GORDURA", totals.get("g", 0), target.get("fat_g", 0), "g",
+         "#9b59b6", 13),
     ]
-    for row, (lbl, cur, tot, color, display_lbl) in enumerate(specs, start=1):
-        ax = fig.add_subplot(gs[row, 0])
-        _ring(ax, frac(cur, tot), display_lbl,
-              f"{round(cur)}/{round(tot)}{'g' if lbl != 'kcal' else ''}", color)
+    # selo de EA colorido ao lado do label KCAL
+    ea_faixa = ea.get("faixa")
+    if ea_faixa:
+        ax.text(0.115, 2 + 0.38 / 2 + 0.06, f"· EA {ea_faixa}", ha="left", va="bottom",
+                fontsize=12, color=_FAIXA_COR.get(ea_faixa, "#888888"), fontweight="bold")
+    for y, h, label, cur, tgt, unid, color, fs in rows:
+        f = frac(cur, tgt)
+        cheio = cur >= tgt and tgt > 0
+        # trilho + preenchimento
+        ax.barh(y, 1.0, height=h, left=0, color="#262a33", zorder=1)
+        ax.barh(y, f, height=h, left=0, color=color, zorder=2)
+        # label acima da barra, valor à direita
+        ax.text(0, y + h / 2 + 0.06, label, ha="left", va="bottom",
+                fontsize=fs, color=color, fontweight="bold")
+        valor = f"{round(cur)}/{round(tgt)}{unid}"
+        if cheio:
+            valor += " ✓"
+        else:
+            falta = tgt - cur
+            valor += f"   (faltam {round(falta)}{unid or ' kcal'})"
+        ax.text(1.0, y + h / 2 + 0.06, valor, ha="right", va="bottom",
+                fontsize=fs - 1, color="#e8e8e8", fontweight="bold")
 
-    # ── ONTEM (fonte maior) ────────────────────────────────────────────────────
-    ax_yd = fig.add_subplot(gs[4, 0])
-    ax_yd.set_facecolor("#141414")
-    ax_yd.axis("off")
-
+    # ── rodapé: ontem numa linha ────────────────────────────────────────────────
     eaten_y = (yday.get("eaten") or {}).get("kcal", 0) or 0
     burn_y = yday.get("burn")
-    balance = yday.get("balance") or {}
-    saldo = balance.get("saldo")
-    ea_y = yday.get("ea") or {}
-    prot_y = (yday.get("eaten") or {}).get("p", 0) or 0
-    prot_tgt_y = yday.get("protein_target", 165)
-
-    burn_str = f"{round(burn_y)} kcal" if burn_y is not None else "sem dados Garmin"
+    saldo = (yday.get("balance") or {}).get("saldo")
     if saldo is None:
-        saldo_str = "—"
-        saldo_color = "#888888"
-    elif saldo < -150:
-        saldo_str = f"déficit {abs(round(saldo))} kcal"
-        saldo_color = "#3b7dd8"
-    elif saldo > 150:
-        saldo_str = f"superávit {round(saldo)} kcal"
-        saldo_color = "#c0392b"
+        saldo_str, saldo_color = "saldo —", "#888888"
+    elif saldo < 0:
+        saldo_str, saldo_color = f"déficit {abs(round(saldo))}", "#3b7dd8"
     else:
-        saldo_str = f"equilibrado ({round(saldo):+d} kcal)"
-        saldo_color = "#2e9e5b"
-
-    ea_faixa_y = ea_y.get("faixa", "?")
-    ea_color_y = _FAIXA_COR.get(ea_faixa_y, "#888888")
-
-    prot_y_color = "#2e9e5b" if prot_y >= prot_tgt_y * 0.9 else "#e07b3b"
-
-    lines = [
-        (f"comido: {round(eaten_y)} kcal  ·  gasto: {burn_str}", "#bdbdbd"),
-        (f"Saldo: {saldo_str}", saldo_color),
-        (f"EA: {ea_faixa_y}  ·  Proteína: {round(prot_y)}/{round(prot_tgt_y)}g", ea_color_y),
-    ]
-    ax_yd.text(0.02, 0.98, "ONTEM", transform=ax_yd.transAxes,
-               fontsize=13, color="#8a8a8a", va="top", fontweight="bold")
-    for i, (line, color) in enumerate(lines):
-        ax_yd.text(0.02, 0.72 - i * 0.30, line, transform=ax_yd.transAxes,
-                   fontsize=14, color=color, va="top")
+        saldo_str, saldo_color = f"superávit {round(saldo)}", "#c0392b"
+    burn_str = f"{round(burn_y)}" if burn_y is not None else "s/ Garmin"
+    prot_y = (yday.get("eaten") or {}).get("p", 0) or 0
+    fig.text(0.05, 0.06,
+             f"ONTEM  comido {round(eaten_y)} · gasto {burn_str} · {saldo_str} · "
+             f"P {round(prot_y)}g",
+             fontsize=12, color="#9a9a9a")
+    if saldo is not None:
+        fig.text(0.05, 0.02, " ", fontsize=2)  # respiro inferior
 
     if titulo:
-        fig.suptitle(titulo, color="#f0f0f0", fontsize=17, fontweight="bold")
+        fig.suptitle(titulo, color="#f0f0f0", fontsize=16, fontweight="bold", y=0.97)
 
     buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=120, facecolor=fig.get_facecolor())
+    fig.savefig(buf, format="png", dpi=130, facecolor=fig.get_facecolor())
     plt.close(fig)
     buf.seek(0)
     return buf

@@ -11,9 +11,10 @@ from bot.nutrition import (
     load_food_db, today_panel, resolve_unknowns,
     parse_peso_arg, build_progress_report,
 )
-from bot.nutrition_format import format_meal_confirm, format_macros_today
+from bot.nutrition_format import format_meal_confirm, format_macros_today, format_dieta_text
 from src.nutrition.config import nutrition_config
 from src.nutrition.meal_parser import parse_meal
+from src.nutrition.suggest import suggest_to_close
 from src.nutrition.label_vision import extract_label
 import src.nutrition.store as store
 
@@ -260,14 +261,32 @@ async def cmd_ref(update, context):
     await update.message.reply_text(txt, reply_markup=kb)
 
 
+# defaults do pool de sugestão: usados quando o histórico ainda é curto; só entram
+# se resolverem na base (TACO/aliases) — nunca viram número inventado.
+_SUGGEST_DEFAULTS = ["frango", "patinho", "atum", "ovo", "iogurte natural"]
+
+
 async def cmd_dieta(update, context):
     if not _authorized(update, context):
         return
     db_path = context.bot_data["db_path"]
     day = dt.date.today().isoformat()
     panel = today_panel(db_path, _profile(context), day)
-    training_today = panel["today"]["training"]
-    titulo = "Hoje (dia treino)" if training_today else "Hoje (descanso)"
+    today = panel["today"]
+
+    # camada de decisão: o que falta + porções reais pra fechar (histórico primeiro)
+    tot, tgt = today["totals"], today["target"]
+    remaining = {"kcal": max(0, tgt.get("kcal", 0) - tot.get("kcal", 0)),
+                 "p": max(0, tgt.get("protein_g", 0) - tot.get("p", 0))}
+    pool = store.frequent_foods(db_path) + _SUGGEST_DEFAULTS
+    try:
+        suggestions = suggest_to_close(remaining, pool, load_food_db(db_path))
+    except Exception:  # noqa: BLE001 — sugestão é bônus; painel sai sem ela
+        suggestions = []
+    meals = store.meals_of_day(db_path, day)
+    await update.message.reply_text(format_dieta_text(today, meals, suggestions))
+
+    titulo = "Hoje (dia treino)" if today["training"] else "Hoje (descanso)"
     png = nutrition_panel_png(panel, titulo=titulo)
     await update.message.reply_photo(png)
 

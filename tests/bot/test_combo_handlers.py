@@ -159,3 +159,23 @@ def test_botao_delmode_e_del(tmp_path):
     u2, q2 = _cb("cmb:del:café")
     asyncio.run(hn.on_combo_button(u2, c))
     assert store.get_combos(db_path) == []
+
+
+# ── /dieta redesenhado: texto de decisão + PNG ─────────────────────────────────
+
+def test_dieta_manda_texto_e_foto(tmp_path):
+    c = _ctx(tmp_path)
+    c.bot_data["profile"] = {"peso_kg": 108, "percentual_gordura": 30}
+    db_path = c.bot_data["db_path"]
+    store.save_meal_items(db_path, __import__("datetime").date.today().isoformat(),
+                          "almoço",
+                          [{"recognized": True, "food": "peito de frango grelhado",
+                            "grams": 150, "kcal": 239, "p": 46, "c": 0, "g": 5}])
+    u = _update("/dieta")
+    u.message.reply_photo = AsyncMock()
+    with patch("bot.handlers_nutrition.load_food_db", return_value=_fdb()):
+        asyncio.run(hn.cmd_dieta(u, c))
+    txt = u.message.reply_text.call_args[0][0]
+    assert "faltam" in txt.lower()
+    assert "almoço" in txt.lower()
+    u.message.reply_photo.assert_awaited_once()

@@ -50,6 +50,54 @@ def format_macros_today(today: dict) -> str:
     return "\n".join(lines)
 
 
+_MEAL_EMOJI = {"café da manhã": "🌅", "almoço": "🍽", "lanche": "🥪", "janta": "🌙"}
+
+
+def _hhmm(iso: str) -> str:
+    try:
+        return iso[11:16]
+    except Exception:  # noqa: BLE001
+        return "--:--"
+
+
+def format_dieta_text(today: dict, meals: list, suggestions: list) -> str:
+    """Camada de decisão do /dieta: o que falta + porções reais pra fechar + dia até agora."""
+    tot = (today or {}).get("totals") or {}
+    tgt = (today or {}).get("target") or {}
+    tipo = "treino" if (today or {}).get("training") else "descanso"
+
+    kcal_left = max(0, (tgt.get("kcal", 0) or 0) - (tot.get("kcal", 0) or 0))
+    p_left = max(0, (tgt.get("protein_g", 0) or 0) - (tot.get("p", 0) or 0))
+    c_left = max(0, (tgt.get("carb_g", 0) or 0) - (tot.get("c", 0) or 0))
+
+    lines = [f"🍽 Hoje ({tipo}) · alvo {round(tgt.get('kcal', 0))} kcal"]
+    if p_left <= 2 and kcal_left > 0:
+        lines.append(f"Proteína fechada ✅ · sobram {round(kcal_left)} kcal "
+                     f"(carbo até {round(c_left)}g)")
+    elif kcal_left <= 0:
+        lines.append("Alvo de kcal batido — segura o resto do dia. ✅")
+    else:
+        lines.append(f"Faltam: {round(kcal_left)} kcal · {round(p_left)}g P · "
+                     f"{round(c_left)}g C")
+    if suggestions:
+        lines.append("")
+        lines.append("Pra fechar a proteína, cabe:")
+        for s in suggestions:
+            lines.append(f"• {round(s['grams'])}g {s['food']} — "
+                         f"{round(s['kcal'])} kcal · {round(s['p'])}g P")
+    lines.append("")
+    if meals:
+        lines.append("Registrado hoje:")
+        for m in meals:
+            nome = m.get("meal") or "refeição"
+            emoji = _MEAL_EMOJI.get(nome, "•")
+            lines.append(f"{emoji} {nome.capitalize()} {_hhmm(m.get('first_at') or '')} — "
+                         f"{round(m.get('kcal') or 0)} kcal · P {round(m.get('p') or 0)}")
+    else:
+        lines.append("Nenhuma refeição registrada ainda — /comi ou /combo.")
+    return "\n".join(lines)
+
+
 def format_night_balance(today: dict, burn) -> str:
     """Fechamento noturno: comido (diário) × gasto (Garmin) do dia corrente.
 
