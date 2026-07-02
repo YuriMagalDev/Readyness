@@ -134,6 +134,16 @@ rebuild/  prompts-fonte da reformulação (01..04)
 ```
 
 ## Deploy
+### Git / Prod (Oracle)
+- O repo git local é o **home inteiro** (`C:\Users\yurig`); o projeto vive no prefix
+  `Documents/Antigravity/Garmin`. O GitHub `YuriMagalDev/Readyness` (público) recebe só o
+  subtree do Garmin, **sem `athlete_profile.json` no histórico** (dado de saúde).
+- Publicar: `bash scripts/deploy_github.sh` (subtree split + filtro do perfil + force push).
+  Nunca dar push direto do repo home nem do branch `garmin-export` sem o filtro.
+- Server (`ubuntu@136.248.77.150:/home/ubuntu/readiness`, systemd `readiness-bot`) rastreia
+  `origin/main` do GitHub: `git pull && sudo systemctl restart readiness-bot`. Repo público →
+  pull sem credencial. `athlete_profile.json` do server é local/untracked (não versionar).
+
 ### Desktop (Windows)
 `iniciar.bat` na raiz: entra na pasta, builda o front se faltar, sobe o bot (token Telegram
 obrigatório) e o painel FastAPI em paralelo. Abre o navegador no painel.
